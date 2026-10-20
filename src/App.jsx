@@ -45,6 +45,15 @@ function doorShape(doors) {
   return ["Variant", "1 door", "", "T", "Cross"][doors.length];
 }
 
+const SCREEN_SIDE = { N: "top", E: "right", S: "bottom", W: "left" };
+
+// "Shows from: top and left doors" for a door tag, as the room is turned on screen.
+function doorsText(tag, turns) {
+  if (!tag) return "Shows from: any door";
+  const names = [...turnSides(tag, ((turns % 4) + 4) % 4)].map((side) => SCREEN_SIDE[side]);
+  return `Shows from: ${names.join(names.length > 2 ? ", " : " and ")} ${names.length === 1 ? "door" : "doors"}`;
+}
+
 // Doorway buttons sit on the template's walls inside the rotating board, so
 // they turn with the room and always name the same wall.
 const DOORWAYS = [
@@ -131,7 +140,7 @@ function Board({ theme, group, variant, rotation, markers, overlay, onTile, onTi
           type="button"
           className={cls.join(" ")}
           aria-label={`Tile ${tx}, ${tz}${other ? ", marked for another door" : m ? `, marked${m.l ? ` "${m.l}"` : ""}` : ""}`}
-          title={other ? "Marked for another door" : undefined}
+          title={other ? "Marked for another door" : raw ? doorsText(parts.tag, rotation) : undefined}
           onClick={() => onTile(tx, tz)}
           onContextMenu={(e) => { e.preventDefault(); onTileErase(tx, tz); }}
           style={m ? { "--mk": css(m.c) } : undefined}
