@@ -1,6 +1,6 @@
 import { encode, decode, derivedFill } from "./codec.js";
 import {
-  ROOM, tileKey, roomOrigin, isBlocked, findGroup, markersInRoom, indexRooms, copiesOf,
+  ROOM, tileKey, roomOrigin, findGroup, markersInRoom, indexRooms, copiesOf,
   separateKey, turnTile, turnSides, splitTag, joinTag, toMarker, markAfter, roomsByPos,
   countMarks, countGroupMarks, straightPath, diveTargets,
 } from "./rooms.js";
@@ -124,7 +124,6 @@ function Board({ theme, group, variant, rotation, markers, overlay, onTile, onTi
       if (overlay.land.has(key)) cls.push("t-land");
       if (overlay.end === key) cls.push("t-end");
       if (overlay.start === key) cls.push("t-start");
-      if (isBlocked(variant, tx, tz)) cls.push("t-blocked");
       cells.push(
         <button
           key={key}
@@ -338,8 +337,8 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
   const at = (p) => `${p.tx},${p.tz}`;
   const landings = useMemo(() => {
     if (!start || tool === "dive" || !isAbility) return [];
-    return DIRECTIONS.map((dir) => straightPath(variant, start, dir, ranges[tool])).filter((path) => path.length);
-  }, [start, tool, isAbility, variant, ranges]);
+    return DIRECTIONS.map((dir) => straightPath(start, dir, ranges[tool])).filter((path) => path.length);
+  }, [start, tool, isAbility, ranges]);
 
   const overlay = useMemo(() => {
     const hovered = landings.find((path) => at(path[path.length - 1]) === hover) || [];
@@ -348,9 +347,9 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
       end: hovered.length ? hover : null,
       path: new Set(hovered.map(at)),
       land: new Set(landings.map((path) => at(path[path.length - 1]))),
-      reach: new Set(tool === "dive" && start ? diveTargets(variant, start, ranges.dive).map(at) : []),
+      reach: new Set(tool === "dive" && start ? diveTargets(start, ranges.dive).map(at) : []),
     };
-  }, [landings, hover, start, tool, variant, ranges]);
+  }, [landings, hover, start, tool, ranges]);
 
   const rooms = useMemo(
     () => copiesOf(families, separate, themeIndex, group.id, variant),

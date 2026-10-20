@@ -9,12 +9,6 @@ export function roomOrigin(col, row) {
   return { x: col * ROOM, z: row * ROOM };
 }
 
-export function isBlocked(variant, tx, tz) {
-  if (!variant || tx < 0 || tz < 0 || tx >= ROOM || tz >= ROOM) return true;
-  const bits = parseInt(variant.blocked.slice(tz * 4, tz * 4 + 4), 16);
-  return ((bits >> tx) & 1) === 1;
-}
-
 // Every room in the catalogue with its copy family (see tools/build-links.mjs).
 // A room is the family's first room turned clockwise `turn` times.
 export function indexRooms(data) {
@@ -136,29 +130,28 @@ export function countGroupMarks(markers, group, byPos, separate) {
   return countMarks(keys, byPos, separate);
 }
 
-// Tiles a straight-line ability passes through, stopping at the room edge or
-// before a blocked tile. Returns the path without the start tile.
-export function straightPath(variant, start, dir, range) {
+// Tiles a straight-line ability passes through, stopping at the room edge.
+// Objects aren't known, so nothing inside the room stops it. Returns the path
+// without the start tile.
+export function straightPath(start, dir, range) {
   const path = [];
   let { tx, tz } = start;
   for (let i = 0; i < range; i++) {
     const nx = tx + dir[0], nz = tz + dir[1];
     if (nx < 0 || nz < 0 || nx >= ROOM || nz >= ROOM) break;
-    if (isBlocked(variant, nx, nz)) break;
     tx = nx; tz = nz;
     path.push({ tx, tz });
   }
   return path;
 }
 
-// Open tiles a dive can land on.
-export function diveTargets(variant, start, range) {
+// Tiles a dive can land on: anything in range inside the room.
+export function diveTargets(start, range) {
   const targets = [];
   for (let tz = 0; tz < ROOM; tz++) {
     for (let tx = 0; tx < ROOM; tx++) {
       const d = Math.max(Math.abs(tx - start.tx), Math.abs(tz - start.tz));
       if (d === 0 || d > range) continue;
-      if (isBlocked(variant, tx, tz)) continue;
       targets.push({ tx, tz });
     }
   }
