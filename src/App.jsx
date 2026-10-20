@@ -235,9 +235,9 @@ function ExportPanel({ markers, onImport, onClose }) {
               <span>Preset name</span>
               <input id="preset-name" value={name} maxLength={64} onChange={(e) => setName(e.target.value)} />
             </label>
-            <div className="key-field">
+            <div className="input-group">
               <input id="export-key" readOnly value={key} placeholder="Mark some tiles first" onFocus={(e) => e.target.select()} />
-              <button type="button" className="icon-button" disabled={!key} onClick={copy}
+              <button type="button" disabled={!key} onClick={copy}
                 aria-label={copied ? "Copied" : "Copy key"} title={copied ? "Copied" : "Copy key"}>
                 <Icon name={copied ? "check" : "copy"} />
               </button>
@@ -246,15 +246,11 @@ function ExportPanel({ markers, onImport, onClose }) {
           </section>
           <section className="stack">
             <h3>Import</h3>
-            <div className="key-row">
-              <div className="key-field">
-                <input id="import-key" placeholder="Paste a TM2… key" value={importText}
-                  onChange={(e) => { setImportText(e.target.value); setMessage(null); }} />
-                <button type="button" className="icon-button" onClick={paste} aria-label="Paste" title="Paste">
-                  <Icon name="paste" />
-                </button>
-              </div>
-              <button type="button" className="primary" onClick={load} disabled={!importText.trim()}>Load</button>
+            <div className="input-group">
+              <input id="import-key" placeholder="Paste a TM2… key" value={importText}
+                onChange={(e) => { setImportText(e.target.value); setMessage(null); }} />
+              <button type="button" onClick={paste} aria-label="Paste" title="Paste"><Icon name="paste" /></button>
+              <button type="button" className="group-action" onClick={load} disabled={!importText.trim()}>Load</button>
             </div>
             {message && <p className={message.ok ? "note ok" : "note err"}>{message.text}</p>}
           </section>
