@@ -1,4 +1,4 @@
-import { encode, decode, derivedFill } from "./codec.js";
+import { encodeKey, decodeKey } from "./keys.js";
 import {
   ROOM, inRoom, tileKey, roomOrigin, findGroup, markersInRoom, indexRooms, copiesOf,
   separateKey, turnTile, turnSides, splitTag, joinTag, toMarker, markAfter, roomsByPos,
@@ -195,19 +195,18 @@ function Icon({ name }) {
 }
 
 function ExportPanel({ markers, total, onImport, onClose }) {
-  const [name, setName] = useState("DG markers");
   const [importText, setImportText] = useState("");
   const [message, setMessage] = useState(null);
   const [copied, setCopied] = useState(false);
 
-  const tiles = useMemo(() => Object.entries(markers).map(([k, m]) => {
-    const [x, z] = k.split(":").map(Number);
-    return { x, z, level: 0, outlineColour: m.c, fillColour: derivedFill(m.c), label: m.l || "" };
-  }), [markers]);
-
   const key = useMemo(() => {
-    try { return tiles.length ? encode(name || "DG markers", tiles) : ""; } catch { return ""; }
-  }, [tiles, name]);
+    const list = Object.entries(markers).map(([k, m]) => {
+      const [x, z] = k.split(":").map(Number);
+      const { tag, text } = splitTag(m.l);
+      return { x, z, colour: m.c, doors: tag, label: text };
+    });
+    return list.length ? encodeKey(list) : "";
+  }, [markers]);
 
   const copy = () => navigator.clipboard.writeText(key).then(() => {
     setCopied(true);
@@ -224,11 +223,11 @@ function ExportPanel({ markers, total, onImport, onClose }) {
 
   const load = () => {
     try {
-      const added = onImport(decode(importText.trim()).tiles);
+      const added = onImport(decodeKey(importText));
       setMessage({ ok: true, text: `Loaded ${added} ${added === 1 ? "mark" : "marks"}.` });
       setImportText("");
     } catch {
-      setMessage({ ok: false, text: "That isn't a Tile Markers key." });
+      setMessage({ ok: false, text: "That isn't a DG Tile Markers key." });
     }
   };
 
@@ -242,10 +241,6 @@ function ExportPanel({ markers, total, onImport, onClose }) {
         <div className="dialog-body">
           <section className="stack">
             <h3>Export</h3>
-            <label className="field">
-              <span>Preset name</span>
-              <input id="preset-name" value={name} maxLength={64} onChange={(e) => setName(e.target.value)} />
-            </label>
             <div className="input-group">
               <input id="export-key" readOnly value={key} placeholder="Mark some tiles first" onFocus={(e) => e.target.select()} />
               <button type="button" disabled={!key} onClick={copy}
@@ -253,12 +248,12 @@ function ExportPanel({ markers, total, onImport, onClose }) {
                 <Icon name={copied ? "check" : "copy"} />
               </button>
             </div>
-            <p className="note">All {total} {total === 1 ? "mark" : "marks"}. In game: Tile Markers → Presets → Import, and paste.</p>
+            <p className="note">All {total} {total === 1 ? "mark" : "marks"}. In game: open DG Tile Markers and paste the key.</p>
           </section>
           <section className="stack">
             <h3>Import</h3>
             <div className="input-group">
-              <input id="import-key" placeholder="Paste a TM2… key" value={importText}
+              <input id="import-key" placeholder="Paste a DGM1… key" value={importText}
                 onChange={(e) => { setImportText(e.target.value); setMessage(null); }} />
               <button type="button" onClick={paste} aria-label="Paste" title="Paste"><Icon name="paste" /></button>
               <button type="button" className="group-action" onClick={load} disabled={!importText.trim()}>Load</button>
@@ -625,17 +620,14 @@ export default function App() {
 
   const total = byPos ? countMarks(Object.keys(markers), byPos, separate) : 0;
 
-  // Returns how many tiles were loaded; DG templates are all on level 0.
-  const importTiles = (tiles) => {
-    const usable = tiles.filter((t) => t.level === 0);
+  // Adds a key's markers; returns how many tiles were loaded.
+  const importTiles = (list) => {
     setMarkers((prev) => {
       const next = { ...prev };
-      for (const t of usable) {
-        next[tileKey(t.x, t.z)] = toMarker(t.outlineColour, t.label);
-      }
+      for (const m of list) next[tileKey(m.x, m.z)] = toMarker(m.colour, joinTag(m.doors, m.label));
       return next;
     });
-    return usable.length;
+    return list.length;
   };
 
   if (error) return <main className="shell"><p className="note err">{error}</p></main>;

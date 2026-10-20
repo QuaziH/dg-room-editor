@@ -72,7 +72,7 @@ export function markersInRoom(markers, col, row) {
 }
 
 // Door tags: "[W] dive" only shows in game when the room was entered through
-// the template's west door (Tile Markers (doors) build).
+// the template's west door.
 export function splitTag(label) {
   const m = /^\[([NESW]+)\]\s*(.*)$/.exec(label || "");
   return m ? { tag: m[1], text: m[2] } : { tag: "", text: label || "" };
