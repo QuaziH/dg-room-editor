@@ -45,6 +45,13 @@ const FACINGS = [
 
 // Door tags: "[W] dive" shows only when the room was entered through the
 // template's west door (Tile Markers (doors) build). Sides are template sides.
+// "Corner", "Straight", ... from a variant's door sides.
+function doorShape(doors) {
+  if (!doors) return "Variant";
+  if (doors.length === 2) return doors === "NS" || doors === "EW" ? "Straight" : "Corner";
+  return ["Variant", "1 door", "", "T", "Cross"][doors.length];
+}
+
 // Doorway buttons sit on the template's walls inside the rotating board, so
 // they turn with the room and always name the same wall.
 const DOORWAYS = [
@@ -198,7 +205,7 @@ function Board({ theme, group, variant, rotation, markers, ability, onTile, onTi
       <div className="board" style={{ transform: `rotate(${rotation * 90}deg)` }}>
         <Sprite theme={theme} sprite={variant.sprite} className="board-img" />
         <div className="grid">{cells}</div>
-        {DOORWAYS.map((d) => (
+        {DOORWAYS.filter((d) => !variant.doors || variant.doors.includes(d.side)).map((d) => (
           <button key={d.side} type="button" className={`doorway doorway-${d.side}`}
             aria-pressed={doorSide === d.side} aria-label="Came in through this door"
             title={doorSide === d.side ? "Click again for any door" : "I came in through this door"}
@@ -367,6 +374,9 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
   const facingVec = FACINGS.find((f) => f && f.id === facing).vec;
 
   useEffect(() => { setStart(null); setDiveEnd(null); }, [tool, variantIndex]);
+  useEffect(() => {
+    if (doorSide && variant.doors && !variant.doors.includes(doorSide)) setDoorSide(null);
+  }, [variant, doorSide]);
 
   const result = useMemo(() => {
     if (!isAbility || !start) return null;
@@ -511,6 +521,21 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
 
       <div className="editor-body">
         <div className="board-col">
+          {group.variants.length > 1 && (
+            <div className="variant-bar" role="radiogroup" aria-label="Door variant">
+              {group.variants.map((v, i) => {
+                const n = markersInRoom(markers, group.col, v.row).length;
+                return (
+                  <button key={v.row} type="button" className="variant" aria-pressed={i === variantIndex}
+                    onClick={() => setVariantIndex(i)}>
+                    <Sprite theme={theme} sprite={v.sprite} className="variant-img" />
+                    <span className="variant-name">{doorShape(v.doors)}</span>
+                    {n > 0 && <span className="variant-count">{n}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <Board theme={theme} group={group} variant={variant} rotation={rotation}
             markers={markers} ability={{ overlay }} onTile={onTile} onTileErase={onTileErase} doorSide={doorSide} setDoorSide={setDoorSide} />
           <p className={doorSide ? "door-status on" : "door-status"}>
@@ -530,24 +555,6 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
         </div>
 
         <aside className="tools">
-          {group.variants.length > 1 && (
-            <div className="panel">
-              <h3>Door variants</h3>
-              <div className="variants">
-                {group.variants.map((v, i) => {
-                  const n = markersInRoom(markers, group.col, v.row).length;
-                  return (
-                    <button key={v.row} type="button" className="variant" aria-pressed={i === variantIndex}
-                      onClick={() => setVariantIndex(i)} aria-label={`Variant ${i + 1}${n ? `, ${n} marked` : ""}`}>
-                      <Sprite theme={theme} sprite={v.sprite} className="variant-img" />
-                      {n > 0 && <span className="variant-count">{n}</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
           <div className="panel">
             <div className="seg tools-seg">
               <button type="button" aria-pressed={tool === "mark"} onClick={() => setTool("mark")}
@@ -703,17 +710,8 @@ export default function App() {
 
   return (
     <div className={`app theme-${theme.id}`}>
-      <header className="top">
-        <div className="brand">
-          <h1>DG Room Markers</h1>
-          <span className="sub">Daemonheim templates for Tile Markers</span>
-        </div>
-        <button type="button" className="primary" onClick={() => setShowExport(true)}>
-          Export / Import{total > 0 && <span className="count">{total}</span>}
-        </button>
-      </header>
-
       <nav className="themes" aria-label="Themes">
+        <h1 className="brand">DG Room Markers</h1>
         {data.themes.map((t, i) => (
           <button key={t.id} type="button" className={`theme-tab tab-${t.id}`} aria-pressed={i === themeIndex}
             onClick={() => { setThemeIndex(i); saveTheme(i); }}>
@@ -761,6 +759,11 @@ export default function App() {
           </>
         )}
       </main>
+
+      <footer className="bottom-bar">
+        <span className="mark-total">{total} {total === 1 ? "mark" : "marks"}</span>
+        <button type="button" className="primary" onClick={() => setShowExport(true)}>Export / Import</button>
+      </footer>
 
       {showExport && (
         <ExportPanel data={data} markers={markers} themeIndex={themeIndex}

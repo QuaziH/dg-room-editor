@@ -1,6 +1,7 @@
 // Finds rooms that are copies of each other and writes a family id and turn to
 // every door variant in public/rooms.json, so marks made in one copy can be
-// placed in all of them. Run after build-data.cjs.
+// placed in all of them, and records which sides have a door. Run after
+// build-data.cjs.
 //
 // Two rooms are copies when, after turning one by a quarter-turn multiple, the
 // inside of the room (doors and outer walls ignored) has the same blocked tiles
@@ -87,14 +88,37 @@ function match(a, b, withColour) {
   return -1;
 }
 
+// Sides with a door: the map draws doorways as red marks in the middle of a wall.
+function doorSides(pixels) {
+  const size = data.roomPx, mid = [size * 3 / 8, size * 5 / 8], depth = size * 3 / 32;
+  const red = (px, pz) => {
+    const i = (pz * size + px) * 3;
+    return pixels[i] > 150 && pixels[i + 1] < 90 && pixels[i + 2] < 90;
+  };
+  const count = ([x0, x1], [z0, z1]) => {
+    let n = 0;
+    for (let pz = z0; pz < z1; pz++) for (let px = x0; px < x1; px++) n += red(px, pz);
+    return n;
+  };
+  const sides = {
+    N: count(mid, [size - depth, size]),
+    E: count([size - depth, size], mid),
+    S: count(mid, [0, depth]),
+    W: count([0, depth], mid),
+  };
+  return Object.keys(sides).filter((side) => sides[side] >= 4).join("");
+}
+
 const rooms = [];
 data.themes.forEach((theme, t) => {
   const sheet = PNG.sync.read(readFileSync(new URL(`../public/${theme.sheet}`, import.meta.url)));
   for (const section of theme.sections) {
     for (const group of section.groups) {
       group.variants.forEach((variant, v) => {
+        const tiles = roomTiles(theme, sheet, variant);
+        variant.doors = doorSides(tiles.pixels);
         rooms.push({ t, section: section.id, group: group.id, name: group.name, v, variant,
-          ...roomTiles(theme, sheet, variant) });
+          ...tiles });
       });
     }
   }
