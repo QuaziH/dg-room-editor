@@ -7,6 +7,7 @@ import {
 const { useState, useEffect, useMemo, useCallback, useRef } = React;
 
 const STORAGE_KEY = "dg-room-markers-v1";
+const THEME_KEY = "dg-room-theme";
 const SWATCHES = [
   { name: "Violet", rgba: 0xc864ffff },
   { name: "Ice", rgba: 0x4fd1ffff },
@@ -69,6 +70,15 @@ function loadMarkers() {
   } catch {
     return {};
   }
+}
+
+// The last theme tab picked, or Frozen.
+function loadTheme() {
+  try { return Number(localStorage.getItem(THEME_KEY)) || 0; } catch { return 0; }
+}
+
+function saveTheme(index) {
+  try { localStorage.setItem(THEME_KEY, String(index)); } catch { /* storage off */ }
 }
 
 function saveMarkers(markers) {
@@ -519,7 +529,7 @@ function Editor({ data, themeIndex, sectionId, group, markers, setMarkers, onClo
 export default function App() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [themeIndex, setThemeIndex] = useState(2);
+  const [themeIndex, setThemeIndex] = useState(loadTheme);
   const [open, setOpen] = useState(null); // { sectionId, groupId }
   const [markers, setMarkers] = useState(loadMarkers);
   const [showExport, setShowExport] = useState(false);
@@ -549,6 +559,7 @@ export default function App() {
   if (error) return <main className="shell"><p className="note err">{error}</p></main>;
   if (!data) return <main className="shell"><p className="note">Loading rooms…</p></main>;
 
+  if (!data.themes[themeIndex]) { setThemeIndex(0); return null; }
   const theme = data.themes[themeIndex];
   const openGroup = open && findGroup(theme, open.sectionId, open.groupId);
   const q = query.trim().toLowerCase();
@@ -568,7 +579,7 @@ export default function App() {
       <nav className="themes" aria-label="Themes">
         {data.themes.map((t, i) => (
           <button key={t.id} type="button" className={`theme-tab tab-${t.id}`} aria-pressed={i === themeIndex}
-            onClick={() => { setThemeIndex(i); }}>
+            onClick={() => { setThemeIndex(i); saveTheme(i); }}>
             {t.name}
           </button>
         ))}
