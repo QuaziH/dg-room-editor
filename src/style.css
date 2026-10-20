@@ -137,6 +137,18 @@ button.ghost.danger { color: var(--err); border-color: color-mix(in srgb, var(--
 .swatches { display: flex; gap: 8px; flex-wrap: wrap; }
 .swatch { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--stone-2); background: var(--sw); }
 .swatch[aria-pressed="true"] { border-color: var(--text); box-shadow: 0 0 0 2px var(--stone-1), 0 0 0 4px var(--sw); }
+.swatch.small { width: 24px; height: 24px; }
+.swatch-wheel {
+  position: relative; cursor: pointer; overflow: hidden;
+  background: var(--sw, conic-gradient(red, yellow, lime, cyan, blue, magenta, red));
+}
+.swatch-wheel:not([aria-pressed="true"])::after {
+  content: "+"; position: absolute; inset: 0; display: grid; place-items: center;
+  font: 700 18px/1 var(--body); color: #fff; text-shadow: 0 0 3px #000;
+}
+.swatch-wheel[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--stone-1), 0 0 0 4px var(--sw), inset 0 0 0 2px rgba(0,0,0,.25); }
+.swatch-wheel input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.recent { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }
 .field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
 .field.inline { flex-direction: row; align-items: center; justify-content: space-between; }
 .field input, textarea {

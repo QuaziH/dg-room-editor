@@ -9,6 +9,8 @@ const { useState, useEffect, useMemo, useCallback, useRef } = React;
 
 const STORAGE_KEY = "dg-room-markers-v1";
 const THEME_KEY = "dg-room-theme";
+const RECENT_KEY = "dg-room-recent-colours";
+const MAX_RECENT = 6;
 const SWATCHES = [
   { name: "Violet", rgba: 0xc864ffff },
   { name: "Ice", rgba: 0x4fd1ffff },
@@ -87,6 +89,23 @@ function saveSeparate(separate) {
   try { localStorage.setItem(SEPARATE_KEY, JSON.stringify([...separate])); } catch { /* storage off */ }
 }
 
+// Picked colours that aren't one of the swatches, newest first.
+function loadRecent() {
+  try {
+    const recent = JSON.parse(localStorage.getItem(RECENT_KEY));
+    return Array.isArray(recent) ? recent.filter(Number.isInteger).slice(0, MAX_RECENT) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecent(recent) {
+  try { localStorage.setItem(RECENT_KEY, JSON.stringify(recent)); } catch { /* storage off */ }
+}
+
+const toHex = (rgba) => `#${((rgba >>> 8) & 0xffffff).toString(16).padStart(6, "0")}`;
+const fromHex = (hex) => ((parseInt(hex.slice(1), 16) << 8) | 0xff) >>> 0;
+
 // The last theme tab picked, or Frozen.
 function loadTheme() {
   try { return Number(localStorage.getItem(THEME_KEY)) || 0; } catch { return 0; }
@@ -129,7 +148,7 @@ function RoomCard({ theme, group, count, onOpen }) {
   );
 }
 
-function Board({ theme, group, variant, rotation, markers, ability, onTile, doorSide, setDoorSide }) {
+function Board({ theme, group, variant, rotation, markers, ability, onTile, onTileErase, doorSide, setDoorSide }) {
   const { x: ox, z: oz } = roomOrigin(group.col, variant.row);
   const overlay = ability.overlay;
   const cells = [];
@@ -155,6 +174,7 @@ function Board({ theme, group, variant, rotation, markers, ability, onTile, door
           className={cls.join(" ")}
           aria-label={`Tile ${tx}, ${tz}${m ? `, marked${m.l ? ` "${m.l}"` : ""}` : ""}`}
           onClick={() => onTile(tx, tz)}
+          onContextMenu={(e) => { e.preventDefault(); onTileErase(tx, tz); }}
           style={m ? { "--mk": css(m.c) } : undefined}
           data-marked={m ? "" : undefined}
         >
@@ -298,6 +318,7 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, mark
   const [rotation, setRotation] = useState(0);
   const [tool, setTool] = useState("mark");
   const [colour, setColour] = useState(SWATCHES[0].rgba);
+  const [recent, setRecent] = useState(loadRecent);
   const [label, setLabel] = useState("");
   const [facing, setFacing] = useState("up");
   const [ranges, setRanges] = useState(DEFAULT_RANGES);
@@ -371,9 +392,14 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, mark
   }, [rooms, setMarkers, doorSide]);
 
   const onTile = (tx, tz) => {
-    if (tool === "mark" || tool === "erase") {
+    if (tool === "mark") {
       // Clicking a tile that already has this exact marker removes it.
-      apply([{ tx, tz, c: colour, text: label.trim() }], tool === "erase" ? "erase" : "toggle");
+      apply([{ tx, tz, c: colour, text: label.trim() }], "toggle");
+      if (!SWATCHES.some((s) => s.rgba === colour) && recent[0] !== colour) {
+        const next = [colour, ...recent.filter((c) => c !== colour)].slice(0, MAX_RECENT);
+        setRecent(next);
+        saveRecent(next);
+      }
       return;
     }
     if (tool === "dive" && start && overlay.reach.has(`${tx},${tz}`)) {
@@ -383,6 +409,8 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, mark
     setStart({ tx, tz });
     setDiveEnd(null);
   };
+
+  const onTileErase = (tx, tz) => { if (tool === "mark") apply([{ tx, tz }], "erase"); };
 
   const saveAbility = () => {
     if (!start || !result || !result.end) return;
@@ -437,7 +465,7 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, mark
       <div className="editor-body">
         <div className="board-col">
           <Board theme={theme} group={group} variant={variant} rotation={rotation}
-            markers={markers} ability={{ overlay }} onTile={onTile} doorSide={doorSide} setDoorSide={setDoorSide} />
+            markers={markers} ability={{ overlay }} onTile={onTile} onTileErase={onTileErase} doorSide={doorSide} setDoorSide={setDoorSide} />
           <div className="rotate-bar">
             <button type="button" onClick={() => setRotation((r) => (r + 3) % 4)} aria-label="Turn left">⟲</button>
             <span className="rot-readout">{rotation === 0 ? "As in the template" : `Turned ${rotation * 90}°`}</span>
@@ -478,7 +506,6 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, mark
           <div className="panel">
             <div className="seg tools-seg">
               <button type="button" aria-pressed={tool === "mark"} onClick={() => setTool("mark")}>Mark</button>
-              <button type="button" aria-pressed={tool === "erase"} onClick={() => setTool("erase")}>Erase</button>
               {Object.entries(ABILITIES).map(([id, a]) => (
                 <button key={id} type="button" aria-pressed={tool === id} onClick={() => setTool(id)}>{a.name}</button>
               ))}
@@ -486,12 +513,28 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, mark
 
             {!isAbility && (
               <div className="stack">
+                <p className="note">Click a tile to mark it. Click it again, or right-click it, to remove it.</p>
                 <div className="swatches" role="radiogroup" aria-label="Marker colour">
                   {SWATCHES.map((s) => (
                     <button key={s.name} type="button" className="swatch" aria-label={s.name}
                       aria-pressed={colour === s.rgba} style={{ "--sw": css(s.rgba) }} onClick={() => setColour(s.rgba)} />
                   ))}
+                  <label className="swatch swatch-wheel" title="Pick any colour"
+                    aria-pressed={!SWATCHES.some((s) => s.rgba === colour)}
+                    style={SWATCHES.some((s) => s.rgba === colour) ? undefined : { "--sw": css(colour) }}>
+                    <input type="color" aria-label="Pick any colour" value={toHex(colour)}
+                      onChange={(e) => setColour(fromHex(e.target.value))} />
+                  </label>
                 </div>
+                {recent.length > 0 && (
+                  <div className="recent">
+                    <span className="muted">Recent</span>
+                    {recent.map((c) => (
+                      <button key={c} type="button" className="swatch small" aria-label={`Recent colour ${toHex(c)}`}
+                        aria-pressed={colour === c} style={{ "--sw": css(c) }} onClick={() => setColour(c)} />
+                    ))}
+                  </div>
+                )}
                 <label className="field">
                   <span>Label (optional)</span>
                   <input id="marker-label" value={label} maxLength={24} placeholder="e.g. surge here" onChange={(e) => setLabel(e.target.value)} />
