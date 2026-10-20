@@ -40,11 +40,11 @@ export const separateKey = (themeIndex, groupId) => `${themeIndex}:${groupId}`;
 // The rooms that share marks with this one: the copies in its family that are
 // on the same side of a separation, each with the turn from this room to it.
 export function copiesOf(families, separate, themeIndex, groupId, variant) {
-  const own = separate.has(separateKey(themeIndex, groupId)) ? separateKey(themeIndex, groupId) : null;
+  const own = separate.includes(separateKey(themeIndex, groupId)) ? separateKey(themeIndex, groupId) : null;
   return families.get(variant.family)
     .filter((room) => {
       const key = separateKey(room.t, room.groupId);
-      return own ? key === own : !separate.has(key);
+      return own ? key === own : !separate.includes(key);
     })
     .map((room) => ({ ...room, delta: (room.turn - variant.turn + 4) % 4 }));
 }

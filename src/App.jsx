@@ -7,10 +7,6 @@ import {
 
 const { useState, useEffect, useMemo, useCallback, useRef } = React;
 
-const STORAGE_KEY = "dg-room-markers-v1";
-const THEME_KEY = "dg-room-theme";
-const RECENT_KEY = "dg-room-recent-colours";
-const COLLAPSED_KEY = "dg-room-collapsed";
 const MAX_RECENT = 6;
 const SWATCHES = [
   { name: "Violet", rgba: 0xc864ffff },
@@ -27,7 +23,6 @@ const ABILITIES = {
 };
 const DEFAULT_RANGES = Object.fromEntries(
   Object.entries(ABILITIES).map(([id, a]) => [id, a.defaultRange]));
-const SEPARATE_KEY = "dg-room-separate";
 // Copies known to differ in game in ways the map can't show.
 const KNOWN_SEPARATE = ["4:p15"]; // Warped Lodestones: an extra wall
 // Screen-relative facing: the arrow points the way your character faces on screen.
@@ -43,8 +38,6 @@ const FACINGS = [
   { id: "down-right", label: "↘", vec: [1, -1] },
 ];
 
-// Door tags: "[W] dive" shows only when the room was entered through the
-// template's west door (Tile Markers (doors) build). Sides are template sides.
 // "Corner", "Straight", ... from a variant's door sides.
 function doorShape(doors) {
   if (!doors) return "Variant";
@@ -60,6 +53,8 @@ const DOORWAYS = [
   { side: "S", arrow: "↑" },
   { side: "W", arrow: "→" },
 ];
+// Door tags: "[W] dive" only shows in game when the room was entered through
+// the template's west door (Tile Markers (doors) build).
 function splitTag(label) {
   const m = /^\[([NESW]+)\]\s*(.*)$/.exec(label || "");
   return m ? { tag: m[1], text: m[2] } : { tag: "", text: label || "" };
@@ -75,66 +70,24 @@ const css = (rgba) => {
   return `rgb(${r} ${g} ${b})`;
 };
 
-function loadMarkers() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-function loadSeparate() {
-  try {
-    const raw = localStorage.getItem(SEPARATE_KEY);
-    return new Set(raw ? JSON.parse(raw) : KNOWN_SEPARATE);
-  } catch {
-    return new Set(KNOWN_SEPARATE);
-  }
-}
-
-function saveSeparate(separate) {
-  try { localStorage.setItem(SEPARATE_KEY, JSON.stringify([...separate])); } catch { /* storage off */ }
-}
-
-// Picked colours that aren't one of the swatches, newest first.
-function loadRecent() {
-  try {
-    const recent = JSON.parse(localStorage.getItem(RECENT_KEY));
-    return Array.isArray(recent) ? recent.filter(Number.isInteger).slice(0, MAX_RECENT) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveRecent(recent) {
-  try { localStorage.setItem(RECENT_KEY, JSON.stringify(recent)); } catch { /* storage off */ }
+// State kept in this browser between visits; falls back when storage is empty or off.
+function useStored(key, fallback) {
+  const [value, setValue] = useState(() => {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw === null ? fallback : JSON.parse(raw);
+    } catch {
+      return fallback;
+    }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage off */ }
+  }, [key, value]);
+  return [value, setValue];
 }
 
 const toHex = (rgba) => `#${((rgba >>> 8) & 0xffffff).toString(16).padStart(6, "0")}`;
 const fromHex = (hex) => ((parseInt(hex.slice(1), 16) << 8) | 0xff) >>> 0;
-
-// Sections the player has collapsed in the room list.
-function loadCollapsed() {
-  try { return new Set(JSON.parse(localStorage.getItem(COLLAPSED_KEY)) || []); } catch { return new Set(); }
-}
-
-function saveCollapsed(collapsed) {
-  try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...collapsed])); } catch { /* storage off */ }
-}
-
-// The last theme tab picked, or Frozen.
-function loadTheme() {
-  try { return Number(localStorage.getItem(THEME_KEY)) || 0; } catch { return 0; }
-}
-
-function saveTheme(index) {
-  try { localStorage.setItem(THEME_KEY, String(index)); } catch { /* storage off */ }
-}
-
-function saveMarkers(markers) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(markers)); } catch { /* storage off */ }
-}
 
 function Sprite({ theme, sprite, className }) {
   const col = sprite % theme.sheetCols;
@@ -165,9 +118,8 @@ function RoomCard({ theme, group, count, onOpen }) {
   );
 }
 
-function Board({ theme, group, variant, rotation, markers, ability, onTile, onTileErase, doorSide, setDoorSide }) {
+function Board({ theme, group, variant, rotation, markers, overlay, onTile, onTileErase, doorSide, setDoorSide }) {
   const { x: ox, z: oz } = roomOrigin(group.col, variant.row);
-  const overlay = ability.overlay;
   const cells = [];
   for (let sy = 0; sy < ROOM; sy++) {
     for (let tx = 0; tx < ROOM; tx++) {
@@ -389,7 +341,7 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
   const rotation = ((turns % 4) + 4) % 4;
   const [tool, setTool] = useState("mark");
   const [colour, setColour] = useState(SWATCHES[0].rgba);
-  const [recent, setRecent] = useState(loadRecent);
+  const [recent, setRecent] = useStored("dg-room-recent-colours", []);
   const [label, setLabel] = useState("");
   const [facing, setFacing] = useState("up");
   const [ranges, setRanges] = useState(DEFAULT_RANGES);
@@ -428,7 +380,7 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
   const rooms = useMemo(
     () => copiesOf(families, separate, themeIndex, group.id, variant),
     [families, separate, themeIndex, group.id, variant]);
-  const isSeparate = separate.has(separateKey(themeIndex, group.id));
+  const isSeparate = separate.includes(separateKey(themeIndex, group.id));
   const familySize = families.get(variant.family).length;
   const byPos = useMemo(
     () => new Map([...families.values()].flat().map((r) => [`${r.col}:${r.row}`, r])), [families]);
@@ -471,10 +423,8 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
     if (tool === "mark") {
       // Clicking a tile that already has this exact marker removes it.
       apply([{ tx, tz, c: colour, text: label.trim() }], "toggle");
-      if (!SWATCHES.some((s) => s.rgba === colour) && recent[0] !== colour) {
-        const next = [colour, ...recent.filter((c) => c !== colour)].slice(0, MAX_RECENT);
-        setRecent(next);
-        saveRecent(next);
+      if (!SWATCHES.some((s) => s.rgba === colour)) {
+        setRecent((prev) => [colour, ...prev.filter((c) => c !== colour)].slice(0, MAX_RECENT));
       }
       return;
     }
@@ -516,11 +466,11 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
   };
 
   const separateName = `${theme.name} ${group.name}`;
-  const makeSeparate = () => setSeparate((prev) => new Set(prev).add(separateKey(themeIndex, group.id)));
+  const makeSeparate = () => setSeparate((prev) => [...prev, separateKey(themeIndex, group.id)]);
   // Rejoins the other copies, taking their marks in place of this copy's own.
   const linkAgain = () => {
     const key = separateKey(themeIndex, group.id);
-    const source = families.get(variant.family).find((r) => !separate.has(separateKey(r.t, r.groupId)));
+    const source = families.get(variant.family).find((r) => !separate.includes(separateKey(r.t, r.groupId)));
     setMarkers((prev) => {
       const next = { ...prev };
       for (const room of rooms) {
@@ -536,7 +486,7 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
       }
       return next;
     });
-    setSeparate((prev) => { const next = new Set(prev); next.delete(key); return next; });
+    setSeparate((prev) => prev.filter((k) => k !== key));
   };
 
   return (
@@ -551,12 +501,10 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
       <div className="editor-body">
         <div className="board-col">
           <Board theme={theme} group={group} variant={variant} rotation={turns}
-            markers={markers} ability={{ overlay }} onTile={onTile} onTileErase={onTileErase} doorSide={doorSide} setDoorSide={setDoorSide} />
-          <div className="board-bar">
-            <div className="rotate-bar">
-              <button type="button" onClick={() => setTurns((t) => t - 1)} aria-label="Turn left" title="Turn left">⟲</button>
-              <button type="button" onClick={() => setTurns((t) => t + 1)} aria-label="Turn right" title="Turn right">⟳</button>
-            </div>
+            markers={markers} overlay={overlay} onTile={onTile} onTileErase={onTileErase} doorSide={doorSide} setDoorSide={setDoorSide} />
+          <div className="rotate-bar">
+            <button type="button" onClick={() => setTurns((t) => t - 1)} aria-label="Turn left" title="Turn left">⟲</button>
+            <button type="button" onClick={() => setTurns((t) => t + 1)} aria-label="Turn right" title="Turn right">⟳</button>
           </div>
         </div>
 
@@ -570,15 +518,11 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
                 onPick={(r) => (r.t === themeIndex && r.groupId === group.id ? setVariantIndex(r.v) : onJump(r))} />
             )}
             {familySize > 1 && (isSeparate ? (
-              <>
-                <button type="button" onClick={linkAgain}
-                  title="Rejoin the other copies. This copy takes their marks in place of its own.">Link again</button>
-              </>
+              <button type="button" onClick={linkAgain}
+                title="Rejoin the other copies. This copy takes their marks in place of its own.">Link again</button>
             ) : (
-              <>
-                <button type="button" onClick={makeSeparate}
-                  title="Only if the game shows this copy is different, like an extra wall.">Make {separateName} separate</button>
-              </>
+              <button type="button" onClick={makeSeparate}
+                title="Only if the game shows this copy is different, like an extra wall.">Make {separateName} separate</button>
             ))}
             {clearable > 0 && (
               <button type="button" className={confirmClear ? "danger-solid" : "ghost danger"} onClick={clearRoom}>
@@ -669,17 +613,13 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
 export default function App() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [themeIndex, setThemeIndex] = useState(loadTheme);
-  const [open, setOpen] = useState(null); // { sectionId, groupId }
-  const [markers, setMarkers] = useState(loadMarkers);
-  const [separate, setSeparate] = useState(loadSeparate);
-  const [collapsed, setCollapsed] = useState(loadCollapsed);
-  const toggleSection = (id) => setCollapsed((prev) => {
-    const next = new Set(prev);
-    if (!next.delete(id)) next.add(id);
-    saveCollapsed(next);
-    return next;
-  });
+  const [themeIndex, setThemeIndex] = useStored("dg-room-theme", 0);
+  const [open, setOpen] = useState(null); // { sectionId, groupId, variant? }
+  const [markers, setMarkers] = useStored("dg-room-markers-v1", {});
+  const [separate, setSeparate] = useStored("dg-room-separate", KNOWN_SEPARATE);
+  const [collapsed, setCollapsed] = useStored("dg-room-collapsed", []);
+  const toggleSection = (id) =>
+    setCollapsed((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   const families = useMemo(() => data && indexRooms(data), [data]);
   const [showExport, setShowExport] = useState(false);
   const [query, setQuery] = useState("");
@@ -688,8 +628,6 @@ export default function App() {
   useEffect(() => {
     fetch("rooms.json").then((r) => r.json()).then(setData, () => setError("The room list didn't load. Refresh the page to try again."));
   }, []);
-  useEffect(() => { saveMarkers(markers); }, [markers]);
-  useEffect(() => { saveSeparate(separate); }, [separate]);
 
   const total = Object.keys(markers).length;
 
@@ -699,7 +637,7 @@ export default function App() {
     setMarkers((prev) => {
       const next = { ...prev };
       for (const t of usable) {
-        next[tileKey(t.x, t.z)] = t.label ? { c: t.outlineColour, l: t.label } : { c: t.outlineColour };
+        next[tileKey(t.x, t.z)] = toMarker(t.outlineColour, t.label);
       }
       return next;
     });
@@ -719,8 +657,8 @@ export default function App() {
       <nav className="themes" aria-label="Themes">
         <h1 className="brand">DG Room Markers</h1>
         {data.themes.map((t, i) => (
-          <button key={t.id} type="button" className={`theme-tab tab-${t.id}`} aria-pressed={i === themeIndex}
-            onClick={() => { setThemeIndex(i); saveTheme(i); }}>
+          <button key={t.id} type="button" className="theme-tab" aria-pressed={i === themeIndex}
+            onClick={() => setThemeIndex(i)}>
             {t.name}
           </button>
         ))}
@@ -731,7 +669,7 @@ export default function App() {
           <Editor key={`${themeIndex}-${open.groupId}`} data={data} families={families}
             separate={separate} setSeparate={setSeparate} themeIndex={themeIndex}
             group={openGroup} initialVariant={open.variant} markers={markers} setMarkers={setMarkers}
-            onJump={(r) => { setThemeIndex(r.t); saveTheme(r.t); setOpen({ sectionId: r.sectionId, groupId: r.groupId, variant: r.v }); }}
+            onJump={(r) => { setThemeIndex(r.t); setOpen({ sectionId: r.sectionId, groupId: r.groupId, variant: r.v }); }}
             onClose={() => { setOpen(null); requestAnimationFrame(() => window.scrollTo(0, scrollRef.current)); }} />
         ) : (
           <>
@@ -745,13 +683,13 @@ export default function App() {
                 <section key={section.id} className="section">
                   <h2>
                     {/* Searching shows every match, collapsed or not. */}
-                    <button type="button" className="section-toggle" aria-expanded={!!q || !collapsed.has(section.id)}
+                    <button type="button" className="section-toggle" aria-expanded={!!q || !collapsed.includes(section.id)}
                       onClick={() => toggleSection(section.id)}>
                       <span className="chevron" aria-hidden="true">▾</span>
                       {section.name} <span className="muted">{groups.length}</span>
                     </button>
                   </h2>
-                  {(q || !collapsed.has(section.id)) && (
+                  {(q || !collapsed.includes(section.id)) && (
                     <div className="cards">
                       {groups.map((g) => (
                         <RoomCard key={g.id} theme={theme} group={g} count={countGroupMarkers(markers, g)}
