@@ -126,7 +126,8 @@ function Board({ theme, group, variant, rotation, markers, overlay, onTile, onTi
       const parts = raw && splitTag(raw.l);
       // With a door picked, marks for other doors fade: the tile is taken.
       const other = raw && doorSide && parts.tag && !parts.tag.includes(doorSide);
-      const m = raw && { c: raw.c, l: other ? "" : parts.text };
+      // Door letters follow the room as turned on screen: N is always the top.
+      const m = raw && { c: raw.c, l: joinTag(turnSides(parts.tag, ((rotation % 4) + 4) % 4), parts.text) };
       const key = `${tx},${tz}`;
       const cls = ["tile"];
       if (overlay.path.has(key)) cls.push("t-path");
