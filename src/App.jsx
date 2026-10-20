@@ -11,7 +11,6 @@ const STORAGE_KEY = "dg-room-markers-v1";
 const THEME_KEY = "dg-room-theme";
 const RECENT_KEY = "dg-room-recent-colours";
 const COLLAPSED_KEY = "dg-room-collapsed";
-const DOOR_HINT_KEY = "dg-room-door-hint-seen";
 const MAX_RECENT = 6;
 const SWATCHES = [
   { name: "Violet", rgba: 0xc864ffff },
@@ -208,7 +207,8 @@ function Board({ theme, group, variant, rotation, markers, ability, onTile, onTi
         <div className="grid">{cells}</div>
         {DOORWAYS.filter((d) => !variant.doors || variant.doors.includes(d.side)).map((d) => (
           <button key={d.side} type="button" className={`doorway doorway-${d.side}`}
-            aria-pressed={doorSide === d.side} aria-label="Came in through this door"
+            aria-pressed={doorSide === d.side} data-dimmed={doorSide && doorSide !== d.side ? "" : undefined}
+            aria-label="Came in through this door"
             title={doorSide === d.side ? "Click again for any door" : "I came in through this door"}
             onClick={() => setDoorSide(doorSide === d.side ? null : d.side)}>{d.arrow}</button>
         ))}
@@ -397,15 +397,6 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
   const [start, setStart] = useState(null);
   const [diveEnd, setDiveEnd] = useState(null);
   const [doorSide, setDoorSide] = useState(null); // template side letter, or null for every door
-  // The "click an arrow" hint shows until the first door is picked.
-  const [doorHintSeen, setDoorHintSeen] = useState(() => {
-    try { return localStorage.getItem(DOOR_HINT_KEY) === "1"; } catch { return false; }
-  });
-  useEffect(() => {
-    if (!doorSide || doorHintSeen) return;
-    setDoorHintSeen(true);
-    try { localStorage.setItem(DOOR_HINT_KEY, "1"); } catch { /* storage off */ }
-  }, [doorSide, doorHintSeen]);
 
   const variant = group.variants[Math.min(variantIndex, group.variants.length - 1)];
   const isAbility = tool in ABILITIES;
@@ -562,19 +553,6 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
           <Board theme={theme} group={group} variant={variant} rotation={turns}
             markers={markers} ability={{ overlay }} onTile={onTile} onTileErase={onTileErase} doorSide={doorSide} setDoorSide={setDoorSide} />
           <div className="board-bar">
-            <p className={doorSide ? "door-status on" : "door-status"}>
-              {doorSide ? (
-                <>
-                  Marks for: this door only
-                  <button type="button" className="chip-clear" onClick={() => setDoorSide(null)} aria-label="Back to any door">✕</button>
-                </>
-              ) : (
-                <>
-                  Marks for: any door
-                  {!doorHintSeen && <span className="hint"> (click an arrow to choose)</span>}
-                </>
-              )}
-            </p>
             <div className="rotate-bar">
               <button type="button" onClick={() => setTurns((t) => t - 1)} aria-label="Turn left" title="Turn left">⟲</button>
               <button type="button" onClick={() => setTurns((t) => t + 1)} aria-label="Turn right" title="Turn right">⟳</button>
