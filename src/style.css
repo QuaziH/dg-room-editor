@@ -235,3 +235,4 @@ button.danger-solid { background: var(--err); color: #fff; border: 1px solid tra
 }
 .icon-button:hover:not(:disabled) { color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); }
 .icon-button:disabled { opacity: .4; cursor: default; }
+.key-row > button { padding: 0 14px; font-size: 13px; }
