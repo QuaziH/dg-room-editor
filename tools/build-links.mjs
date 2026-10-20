@@ -88,25 +88,30 @@ function match(a, b, withColour) {
   return -1;
 }
 
-// Sides with a door: the map draws doorways as red marks in the middle of a wall.
+// Sides with a door. Every template room has its south door; the map draws the
+// others as red marks two tiles wide in the middle of a wall (some puzzle rooms
+// also have one-tile red marks that aren't doors).
 function doorSides(pixels) {
-  const size = data.roomPx, mid = [size * 3 / 8, size * 5 / 8], depth = size * 3 / 32;
+  const size = data.roomPx, tile = size / ROOM, depth = size * 3 / 32;
   const red = (px, pz) => {
     const i = (pz * size + px) * 3;
     return pixels[i] > 150 && pixels[i + 1] < 90 && pixels[i + 2] < 90;
   };
-  const count = ([x0, x1], [z0, z1]) => {
+  // How many positions along the wall's middle stretch have red within `depth` of the edge.
+  const width = (along) => {
     let n = 0;
-    for (let pz = z0; pz < z1; pz++) for (let px = x0; px < x1; px++) n += red(px, pz);
+    for (let a = size * 3 / 8; a < size * 5 / 8; a++) {
+      for (let d = 0; d < depth; d++) if (along(a, d)) { n++; break; }
+    }
     return n;
   };
   const sides = {
-    N: count(mid, [size - depth, size]),
-    E: count([size - depth, size], mid),
-    S: count(mid, [0, depth]),
-    W: count([0, depth], mid),
+    N: width((a, d) => red(a, size - 1 - d)),
+    E: width((a, d) => red(size - 1 - d, a)),
+    S: Infinity,
+    W: width((a, d) => red(d, a)),
   };
-  return Object.keys(sides).filter((side) => sides[side] >= 4).join("");
+  return Object.keys(sides).filter((side) => sides[side] >= tile * 1.5).join("");
 }
 
 const rooms = [];

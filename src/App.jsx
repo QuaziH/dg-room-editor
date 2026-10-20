@@ -584,9 +584,6 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
                   <input id={`range-${tool}`} type="number" min={1} max={20} value={ranges[tool]}
                     onChange={(e) => setRanges((r) => ({ ...r, [tool]: Math.max(1, Math.min(20, Number(e.target.value) || 1)) }))} />
                 </label>
-                <p className="note">
-                  {!start ? "Click where you start." : tool === "dive" ? "Click where to land." : "Click a direction."}
-                </p>
               </div>
             )}
           </div>
