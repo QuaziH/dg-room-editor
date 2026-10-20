@@ -484,7 +484,6 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
     setConfirmClear(false);
   };
 
-  const marked = markersInRoom(markers, group.col, variant.row).length;
   const separateName = `${theme.name} ${group.name}`;
   const makeSeparate = () => setSeparate((prev) => new Set(prev).add(separateKey(themeIndex, group.id)));
   // Rejoins the other copies, taking their marks in place of this copy's own.
