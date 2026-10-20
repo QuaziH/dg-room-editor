@@ -319,9 +319,34 @@ function ExportPanel({ data, markers, themeIndex, group, sectionId, onImport, on
   );
 }
 
-function Editor({ data, families, separate, setSeparate, themeIndex, group, markers, setMarkers, onClose }) {
+// Small pictures of the rooms that share marks with this one, by theme.
+function CopyList({ data, copies, onJump }) {
+  const byTheme = data.themes.map((theme, t) => ({ theme, t, rooms: copies.filter((r) => r.t === t) }))
+    .filter((g) => g.rooms.length);
+  return (
+    <div className="copy-list">
+      {byTheme.map(({ theme, t, rooms }) => (
+        <div key={t} className={`copy-row theme-${theme.id}`}>
+          <span className="copy-theme">{theme.name}</span>
+          <div className="copy-thumbs">
+            {rooms.map((r) => (
+              <button key={`${r.col}:${r.row}`} type="button" className="copy-thumb" onClick={() => onJump(r)}
+                title={`${theme.name} ${r.groupName}, door variant ${r.v + 1}${r.delta ? " (turned to fit)" : ""}`}>
+                <Sprite theme={theme} sprite={r.sprite} className="copy-img" />
+                {r.delta > 0 && <span className="copy-turn" aria-label="turned">↻</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Editor({ data, families, separate, setSeparate, themeIndex, group, initialVariant, markers, setMarkers, onJump, onClose }) {
   const theme = data.themes[themeIndex];
   const [variantIndex, setVariantIndex] = useState(() => {
+    if (initialVariant != null) return initialVariant;
     const i = group.variants.findIndex((v) => markersInRoom(markers, group.col, v.row).length > 0);
     return i < 0 ? 0 : i;
   });
@@ -596,9 +621,13 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, mark
           </div>
 
           <div className="panel stack">
-            <h3 title="Marks go to every copy of this room: other themes and matching door variants, turned to fit.">
+            <h3 title="Marks go to every copy of this room, turned to fit.">
               {rooms.length > 1 ? `Shared with ${rooms.length - 1} ${rooms.length === 2 ? "copy" : "copies"}` : "No copies"}
             </h3>
+            {rooms.length > 1 && (
+              <CopyList data={data} copies={rooms.filter((r) => r.col !== group.col || r.row !== variant.row)}
+                onJump={(r) => (r.t === themeIndex && r.groupId === group.id ? setVariantIndex(r.v) : onJump(r))} />
+            )}
             {familySize > 1 && (isSeparate ? (
               <>
                 <button type="button" onClick={linkAgain}
@@ -697,7 +726,8 @@ export default function App() {
         {openGroup ? (
           <Editor key={`${themeIndex}-${open.groupId}`} data={data} families={families}
             separate={separate} setSeparate={setSeparate} themeIndex={themeIndex}
-            group={openGroup} markers={markers} setMarkers={setMarkers}
+            group={openGroup} initialVariant={open.variant} markers={markers} setMarkers={setMarkers}
+            onJump={(r) => { setThemeIndex(r.t); saveTheme(r.t); setOpen({ sectionId: r.sectionId, groupId: r.groupId, variant: r.v }); }}
             onClose={() => { setOpen(null); requestAnimationFrame(() => window.scrollTo(0, scrollRef.current)); }} />
         ) : (
           <>

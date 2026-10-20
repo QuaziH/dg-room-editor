@@ -23,7 +23,8 @@ export function indexRooms(data) {
     for (const section of theme.sections) {
       for (const group of section.groups) {
         group.variants.forEach((variant, v) => {
-          const room = { t, groupId: group.id, v, col: group.col, row: variant.row, turn: variant.turn };
+          const room = { t, sectionId: section.id, groupId: group.id, groupName: group.name, v,
+            sprite: variant.sprite, col: group.col, row: variant.row, turn: variant.turn };
           if (!families.has(variant.family)) families.set(variant.family, []);
           families.get(variant.family).push(room);
         });
