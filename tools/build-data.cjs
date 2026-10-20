@@ -1,5 +1,5 @@
 // Builds the room catalogue and one image sheet per theme from mejrs map tiles.
-// Usage: node build-data.js <mejrs dir with z3/ and nomove2/> <out dir>
+// Usage: node tools/build-data.cjs <mejrs dir with z3/ and nomove2/> <out dir>
 //
 // Template layout (one block per theme, same order everywhere):
 //   normal rooms  rows T..T+4 (all columns) and T+8..T+12 (columns <= 12), T = 120 + 24*i

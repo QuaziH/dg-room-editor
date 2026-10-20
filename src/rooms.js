@@ -58,7 +58,7 @@ export function countGroupMarkers(markers, group) {
 
 // Rotations: k quarter turns clockwise, as the board is drawn on screen.
 // Template vectors use (x east, z north).
-export function rotateCW([x, z], k) {
+function rotateCW([x, z], k) {
   for (let i = 0; i < ((k % 4) + 4) % 4; i++) [x, z] = [z, -x];
   return [x, z];
 }

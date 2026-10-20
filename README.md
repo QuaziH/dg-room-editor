@@ -23,11 +23,11 @@ npm run build     # bundles src/ into docs/, which GitHub Pages serves
 npm test -- <lua 5.4 binary> <tilemarkers repo>   # checks the codec against the plugin's Lua codec
 ```
 
-`public/` holds the room list and image sheets. `tools/build-data.js` regenerates them
+`public/` holds the room list and image sheets. `tools/build-data.cjs` regenerates them
 from [mejrs' RS3 map tiles](https://github.com/mejrs/layers_rs3):
 
 ```sh
-node tools/build-data.js <dir with z3/ and nomove2/ tiles> public
+node tools/build-data.cjs <dir with z3/ and nomove2/ tiles> public
 ```
 
 Map images are from mejrs/layers_rs3 and © Jagex. This project is not affiliated with Jagex.

@@ -13,8 +13,8 @@ const MORTON_COORDINATES_FLAG = 0x20;
 const PREFIX_DICTIONARY_FLAG = 0x40;
 
 // Tile Markers colours are 0xRRGGBBAA.
-export const DEFAULT_OUTLINE = 0xFFFFFFFF;
-export const DEFAULT_THICKNESS = 2.0;
+const DEFAULT_OUTLINE = 0xFFFFFFFF;
+const DEFAULT_THICKNESS = 2.0;
 
 export function derivedFill(outline) {
   const darken = (c) => Math.floor((c * 4 + 2) / 5);

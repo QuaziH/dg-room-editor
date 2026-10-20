@@ -20,6 +20,10 @@ const ABILITIES = {
   escape: { name: "Escape", hint: "Straight back", defaultRange: 7 },
   dive: { name: "Dive", hint: "Any tile in range", defaultRange: 10 },
 };
+const DEFAULT_RANGES = Object.fromEntries(
+  Object.entries(ABILITIES).map(([id, a]) => [id, a.defaultRange]));
+// The one puzzle column whose puzzle differs per theme, so marks there stay in one theme.
+const THEME_PUZZLE_COL = 11;
 // Screen-relative facing: the arrow points the way your character faces on screen.
 const FACINGS = [
   { id: "up-left", label: "↖", vec: [-1, 1] },
@@ -43,7 +47,7 @@ const DOORWAYS = [
   { side: "S", arrow: "↑" },
   { side: "W", arrow: "→" },
 ];
-export function splitTag(label) {
+function splitTag(label) {
   const m = /^\[([NESW]+)\]\s*(.*)$/.exec(label || "");
   return m ? { tag: m[1], text: m[2] } : { tag: "", text: label || "" };
 }
@@ -204,7 +208,7 @@ function ExportPanel({ data, markers, themeIndex, group, sectionId, onImport, on
   }, [scope, markers, data, themeIndex, group, sectionId]);
 
   const key = useMemo(() => {
-    try { return tiles.length ? encode(name || "DG markers", tiles) : ""; } catch (e) { return ""; }
+    try { return tiles.length ? encode(name || "DG markers", tiles) : ""; } catch { return ""; }
   }, [tiles, name]);
 
   const copy = (e) => {
@@ -271,9 +275,9 @@ function Editor({ data, themeIndex, sectionId, group, markers, setMarkers, onClo
   const [colour, setColour] = useState(SWATCHES[0].rgba);
   const [label, setLabel] = useState("");
   const [allVariants, setAllVariants] = useState(true);
-  const [allThemes, setAllThemes] = useState(sectionId !== "puzzle" || group.col !== 11);
+  const [allThemes, setAllThemes] = useState(sectionId !== "puzzle" || group.col !== THEME_PUZZLE_COL);
   const [facing, setFacing] = useState("up");
-  const [ranges, setRanges] = useState({ surge: 10, escape: 7, dive: 10 });
+  const [ranges, setRanges] = useState(DEFAULT_RANGES);
   const [stopAtBlocked, setStopAtBlocked] = useState(true);
   const [start, setStart] = useState(null);
   const [diveEnd, setDiveEnd] = useState(null);

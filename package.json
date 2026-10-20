@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Mark Dungeoneering room tiles and export Tile Markers presets.",
-  "type": "commonjs",
+  "type": "module",
   "scripts": {
     "build": "node tools/build.mjs",
     "test": "node tools/test-codec.mjs"
