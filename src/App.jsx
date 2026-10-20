@@ -169,27 +169,7 @@ function Board({ theme, group, variant, rotation, markers, overlay, onTile, onTi
   );
 }
 
-// "Furnished · Home (door variant 5)" for each room the tiles fall in.
-function describePlaces(data, tiles) {
-  const places = new Map();
-  for (const t of tiles) {
-    const col = Math.floor(t.x / ROOM), row = Math.floor(t.z / ROOM);
-    for (const theme of data.themes) {
-      for (const section of theme.sections) {
-        for (const g of section.groups) {
-          if (g.col !== col) continue;
-          const i = g.variants.findIndex((v) => v.row === row);
-          if (i < 0) continue;
-          const name = `${theme.name} · ${g.name}${g.variants.length > 1 ? ` (door variant ${i + 1})` : ""}`;
-          places.set(name, (places.get(name) || 0) + 1);
-        }
-      }
-    }
-  }
-  return [...places.keys()].slice(0, 4).join(", ") + (places.size > 4 ? ` and ${places.size - 4} more rooms` : "");
-}
-
-function ExportPanel({ data, markers, onImport, onClose }) {
+function ExportPanel({ markers, onImport, onClose }) {
   const [name, setName] = useState("DG markers");
   const [importText, setImportText] = useState("");
   const [message, setMessage] = useState(null);
@@ -211,15 +191,16 @@ function ExportPanel({ data, markers, onImport, onClose }) {
     setTimeout(() => setCopied(false), 1600);
   };
 
-  const runImport = () => {
+  // Loads a key as soon as it's pasted or typed in full.
+  const load = (text) => {
+    setImportText(text);
+    if (!text.trim()) { setMessage(null); return; }
     try {
-      const preset = decode(importText);
-      const added = onImport(preset.tiles);
-      const where = describePlaces(data, preset.tiles);
-      setMessage({ ok: true, text: `Loaded "${preset.name}": ${added} tiles${where ? ` in ${where}` : ""}.` });
+      const added = onImport(decode(text.trim()).tiles);
+      setMessage({ ok: true, text: `Loaded ${added} ${added === 1 ? "mark" : "marks"}.` });
       setImportText("");
-    } catch (e) {
-      setMessage({ ok: false, text: e.message });
+    } catch {
+      setMessage({ ok: false, text: "That isn't a Tile Markers key." });
     }
   };
 
@@ -243,8 +224,8 @@ function ExportPanel({ data, markers, onImport, onClose }) {
         </section>
         <section className="stack">
           <h3>Load a key</h3>
-          <textarea id="import-key" rows={3} placeholder="TM2…" value={importText} onChange={(e) => setImportText(e.target.value)} />
-          <button type="button" onClick={runImport} disabled={!importText.trim()}>Load into editor</button>
+          <input id="import-key" className="key-input" placeholder="Paste a TM2… key" value={importText}
+            onChange={(e) => load(e.target.value)} />
           {message && <p className={message.ok ? "note ok" : "note err"}>{message.text}</p>}
         </section>
       </div>
@@ -683,7 +664,7 @@ export default function App() {
       </footer>
 
       {showExport && (
-        <ExportPanel data={data} markers={markers} onImport={importTiles} onClose={() => setShowExport(false)} />
+        <ExportPanel markers={markers} onImport={importTiles} onClose={() => setShowExport(false)} />
       )}
     </div>
   );
