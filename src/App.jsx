@@ -17,9 +17,9 @@ const SWATCHES = [
   { name: "Bone", rgba: 0xffffffff },
 ];
 const ABILITIES = {
-  surge: { name: "Surge", defaultRange: 10 },
-  escape: { name: "Escape", defaultRange: 7 },
-  dive: { name: "Dive", defaultRange: 10 },
+  surge: { name: "Surge", colour: 0x4a90ffff, defaultRange: 10 },
+  escape: { name: "Escape", colour: 0x5ee36aff, defaultRange: 7 },
+  dive: { name: "Dive", colour: 0xff9a3dff, defaultRange: 10 },
 };
 const DEFAULT_RANGES = Object.fromEntries(
   Object.entries(ABILITIES).map(([id, a]) => [id, a.defaultRange]));
@@ -106,7 +106,7 @@ function RoomCard({ theme, group, count, onOpen }) {
   );
 }
 
-function Board({ theme, group, variant, rotation, markers, overlay, arrows, onArrow, onTile, onTileHover, onTileErase, doorSide, setDoorSide }) {
+function Board({ theme, group, variant, rotation, markers, overlay, jumpColour, arrows, onArrow, onTile, onTileHover, onTileErase, doorSide, setDoorSide }) {
   const { x: ox, z: oz } = roomOrigin(group.col, variant.row);
   const cells = [];
   for (let sy = 0; sy < ROOM; sy++) {
@@ -143,7 +143,7 @@ function Board({ theme, group, variant, rotation, markers, overlay, arrows, onAr
   }
   return (
     <div className="board-wrap">
-      <div className="board" style={{ transform: `rotate(${rotation * 90}deg)` }}>
+      <div className="board" style={{ transform: `rotate(${rotation * 90}deg)`, "--jump": jumpColour && css(jumpColour) }}>
         <Sprite theme={theme} sprite={variant.sprite} className="board-img" />
         <div className="grid" onMouseLeave={() => onTileHover(null)}>{cells}</div>
         {overlay.range && (
@@ -415,8 +415,8 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
     const name = ABILITIES[tool].name;
     const pair = Date.now().toString(36);
     apply([
-      { ...from, c: colour, text: `${name} from`, pair },
-      { ...to, c: colour, text: `${name} to`, pair },
+      { ...from, c: ABILITIES[tool].colour, text: `${name} from`, pair },
+      { ...to, c: ABILITIES[tool].colour, text: `${name} to`, pair },
     ], "set");
     setStart(null);
     setHover(null);
@@ -500,7 +500,7 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
       <div className="editor-body">
         <div className="board-col">
           <Board theme={theme} group={group} variant={variant} rotation={turns}
-            markers={markers} overlay={overlay} arrows={arrows}
+            markers={markers} overlay={overlay} arrows={arrows} jumpColour={isAbility && ABILITIES[tool].colour}
             onArrow={(a) => savePair(start, a.path[a.path.length - 1])} onTile={onTile} onTileHover={setHover} onTileErase={onTileErase} doorSide={doorSide} setDoorSide={setDoorSide} />
           <div className="rotate-bar">
             <button type="button" onClick={() => setTurns((t) => t - 1)} aria-label="Turn left" title="Turn left">⟲</button>
