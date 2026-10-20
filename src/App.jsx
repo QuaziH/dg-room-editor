@@ -173,6 +173,7 @@ const ICONS = {
   copy: "M9 9h10v10H9zM5 15V5h10",
   check: "M5 12l5 5L19 7",
   paste: "M9 4h6v3H9zM7 6H5v14h14V6h-2",
+  close: "M6 6l12 12M18 6L6 18",
 };
 
 function Icon({ name }) {
@@ -202,6 +203,12 @@ function ExportPanel({ markers, onImport, onClose }) {
     setTimeout(() => setCopied(false), 1600);
   });
 
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   const paste = () => navigator.clipboard.readText().then(setImportText, () => {});
 
   const load = () => {
@@ -215,41 +222,43 @@ function ExportPanel({ markers, onImport, onClose }) {
   };
 
   return (
-    <div className="sheet" role="dialog" aria-label="Export and import">
-      <div className="sheet-head">
-        <h2>Export / Import</h2>
-        <button type="button" className="ghost" onClick={onClose}>Close</button>
-      </div>
-      <div className="sheet-body">
-        <section className="stack">
-          <h3>Export</h3>
-          <label className="field">
-            <span>Preset name</span>
-            <input id="preset-name" value={name} maxLength={64} onChange={(e) => setName(e.target.value)} />
-          </label>
-          <div className="key-field">
-            <input id="export-key" readOnly value={key} placeholder="Mark some tiles first" onFocus={(e) => e.target.select()} />
-            <button type="button" className="icon-button" disabled={!key} onClick={copy}
-              aria-label={copied ? "Copied" : "Copy key"} title={copied ? "Copied" : "Copy key"}>
-              <Icon name={copied ? "check" : "copy"} />
-            </button>
-          </div>
-          <p className="note">All {tiles.length} marks. In game: Tile Markers → Presets → Import, and paste.</p>
-        </section>
-        <section className="stack">
-          <h3>Import</h3>
-          <div className="key-row">
+    <div className="backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+        <div className="dialog-head">
+          <h2 id="dialog-title">Export / Import</h2>
+          <button type="button" className="icon-close" onClick={onClose} aria-label="Close"><Icon name="close" /></button>
+        </div>
+        <div className="dialog-body">
+          <section className="stack">
+            <h3>Export</h3>
+            <label className="field">
+              <span>Preset name</span>
+              <input id="preset-name" value={name} maxLength={64} onChange={(e) => setName(e.target.value)} />
+            </label>
             <div className="key-field">
-              <input id="import-key" placeholder="Paste a TM2… key" value={importText}
-                onChange={(e) => { setImportText(e.target.value); setMessage(null); }} />
-              <button type="button" className="icon-button" onClick={paste} aria-label="Paste" title="Paste">
-                <Icon name="paste" />
+              <input id="export-key" readOnly value={key} placeholder="Mark some tiles first" onFocus={(e) => e.target.select()} />
+              <button type="button" className="icon-button" disabled={!key} onClick={copy}
+                aria-label={copied ? "Copied" : "Copy key"} title={copied ? "Copied" : "Copy key"}>
+                <Icon name={copied ? "check" : "copy"} />
               </button>
             </div>
-            <button type="button" className="primary" onClick={load} disabled={!importText.trim()}>Load</button>
-          </div>
-          {message && <p className={message.ok ? "note ok" : "note err"}>{message.text}</p>}
-        </section>
+            <p className="note">All {tiles.length} marks. In game: Tile Markers → Presets → Import, and paste.</p>
+          </section>
+          <section className="stack">
+            <h3>Import</h3>
+            <div className="key-row">
+              <div className="key-field">
+                <input id="import-key" placeholder="Paste a TM2… key" value={importText}
+                  onChange={(e) => { setImportText(e.target.value); setMessage(null); }} />
+                <button type="button" className="icon-button" onClick={paste} aria-label="Paste" title="Paste">
+                  <Icon name="paste" />
+                </button>
+              </div>
+              <button type="button" className="primary" onClick={load} disabled={!importText.trim()}>Load</button>
+            </div>
+            {message && <p className={message.ok ? "note ok" : "note err"}>{message.text}</p>}
+          </section>
+        </div>
       </div>
     </div>
   );

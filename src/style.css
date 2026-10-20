@@ -158,17 +158,22 @@ button.back:hover { color: var(--accent); }
 .note.ok { color: var(--ok); }
 .note.err { color: var(--err); }
 
-/* Export sheet */
-.sheet {
-  position: fixed; inset: auto 0 0 0; z-index: 20; max-height: 88vh; overflow: auto;
-  background: var(--stone-1); border-top: 1px solid var(--accent); border-radius: 16px 16px 0 0;
-  padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
-  box-shadow: 0 -20px 60px rgba(0,0,0,.6);
+/* Export / import dialog */
+.backdrop {
+  position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px;
+  background: rgba(0, 0, 0, .6); backdrop-filter: blur(2px);
 }
-.sheet-head { display: flex; justify-content: space-between; align-items: center; max-width: 960px; margin: 0 auto 12px; }
-.sheet-head h2 { font: 600 26px/1 var(--display); margin: 0; }
-.sheet-body { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 24px; max-width: 960px; margin: 0 auto; }
-@media (max-width: 720px) { .sheet-body { grid-template-columns: minmax(0, 1fr); } }
+.dialog {
+  width: min(100%, 480px); max-height: calc(100vh - 32px); overflow: auto;
+  background: var(--stone-1); border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .5);
+}
+.dialog-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 16px 0 20px; }
+.dialog-head h2 { font: 700 18px/1.2 var(--body); margin: 0; }
+.icon-close { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--muted); }
+.icon-close:hover { color: var(--text); background: var(--stone-2); }
+.dialog-body > section { padding: 16px 20px; }
+.dialog-body > section + section { border-top: 1px solid var(--line); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 .compass { display: grid; grid-template-columns: repeat(3, 36px); gap: 4px; }
