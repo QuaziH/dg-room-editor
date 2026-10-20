@@ -10,6 +10,7 @@ const { useState, useEffect, useMemo, useCallback, useRef } = React;
 const STORAGE_KEY = "dg-room-markers-v1";
 const THEME_KEY = "dg-room-theme";
 const RECENT_KEY = "dg-room-recent-colours";
+const COLLAPSED_KEY = "dg-room-collapsed";
 const MAX_RECENT = 6;
 const SWATCHES = [
   { name: "Violet", rgba: 0xc864ffff },
@@ -105,6 +106,15 @@ function saveRecent(recent) {
 
 const toHex = (rgba) => `#${((rgba >>> 8) & 0xffffff).toString(16).padStart(6, "0")}`;
 const fromHex = (hex) => ((parseInt(hex.slice(1), 16) << 8) | 0xff) >>> 0;
+
+// Sections the player has collapsed in the room list.
+function loadCollapsed() {
+  try { return new Set(JSON.parse(localStorage.getItem(COLLAPSED_KEY)) || []); } catch { return new Set(); }
+}
+
+function saveCollapsed(collapsed) {
+  try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...collapsed])); } catch { /* storage off */ }
+}
 
 // The last theme tab picked, or Frozen.
 function loadTheme() {
@@ -625,6 +635,13 @@ export default function App() {
   const [open, setOpen] = useState(null); // { sectionId, groupId }
   const [markers, setMarkers] = useState(loadMarkers);
   const [separate, setSeparate] = useState(loadSeparate);
+  const [collapsed, setCollapsed] = useState(loadCollapsed);
+  const toggleSection = (id) => setCollapsed((prev) => {
+    const next = new Set(prev);
+    if (!next.delete(id)) next.add(id);
+    saveCollapsed(next);
+    return next;
+  });
   const families = useMemo(() => data && indexRooms(data), [data]);
   const [showExport, setShowExport] = useState(false);
   const [query, setQuery] = useState("");
@@ -696,13 +713,22 @@ export default function App() {
               if (!groups.length) return null;
               return (
                 <section key={section.id} className="section">
-                  <h2>{section.name} <span className="muted">{groups.length}</span></h2>
-                  <div className="cards">
-                    {groups.map((g) => (
-                      <RoomCard key={g.id} theme={theme} group={g} count={countGroupMarkers(markers, g)}
-                        onOpen={() => { scrollRef.current = window.scrollY; setOpen({ sectionId: section.id, groupId: g.id }); window.scrollTo(0, 0); }} />
-                    ))}
-                  </div>
+                  <h2>
+                    {/* Searching shows every match, collapsed or not. */}
+                    <button type="button" className="section-toggle" aria-expanded={!!q || !collapsed.has(section.id)}
+                      onClick={() => toggleSection(section.id)}>
+                      <span className="chevron" aria-hidden="true">▾</span>
+                      {section.name} <span className="muted">{groups.length}</span>
+                    </button>
+                  </h2>
+                  {(q || !collapsed.has(section.id)) && (
+                    <div className="cards">
+                      {groups.map((g) => (
+                        <RoomCard key={g.id} theme={theme} group={g} count={countGroupMarkers(markers, g)}
+                          onOpen={() => { scrollRef.current = window.scrollY; setOpen({ sectionId: section.id, groupId: g.id }); window.scrollTo(0, 0); }} />
+                      ))}
+                    </div>
+                  )}
                 </section>
               );
             })}
