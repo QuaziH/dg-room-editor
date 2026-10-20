@@ -91,7 +91,8 @@ export const toMarker = (c, l) => (l ? { c, l } : { c });
 // A tile's marker after a click, or null for none. `mark` is { c, text },
 // `side` the door being marked for (or null for any door), and `mode` one of
 // "set", "toggle" (clicking the same marker again removes it) or "erase".
-// With a door picked, removing only takes that door out of the marker's tag.
+// With a door picked, removing only takes that door out of the marker's tag;
+// placing adds the door to whatever doors the tile already had.
 export function markAfter(existing, mark, side, mode) {
   const old = existing && splitTag(existing.l);
   const removeDoor = () => {
@@ -102,7 +103,8 @@ export function markAfter(existing, mark, side, mode) {
   if (mode === "erase") return existing ? removeDoor() : null;
   const same = existing && existing.c === mark.c && old.text === (mark.text || "");
   if (mode === "toggle" && same && (!side || !old.tag || old.tag.includes(side))) return removeDoor();
-  const tag = side ? (same && old.tag ? old.tag + side : side) : "";
+  // A new colour or label replaces the marker but keeps its doors.
+  const tag = (old ? old.tag : "") + (side || "");
   return toMarker(mark.c, joinTag(tag, mark.text || ""));
 }
 

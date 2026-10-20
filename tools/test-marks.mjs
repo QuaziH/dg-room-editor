@@ -23,6 +23,9 @@ check(markAfter({ c: RED, l: "[W] surge" }, red, "W", "toggle"), null, "last doo
 check(markAfter({ c: RED, l: "[NW] surge" }, null, "N", "erase"), { c: RED, l: "[W] surge" }, "erase with a door keeps the others");
 check(markAfter({ c: RED, l: "[NW] surge" }, null, null, "erase"), null, "erase with any door removes it");
 check(markAfter({ c: RED, l: "surge" }, red, "W", "toggle"), null, "an any-door mark is removed (left as is on purpose)");
+check(markAfter({ c: RED, l: "[NESW]" }, { c: RED, text: "Surge from" }, null, "set"), { c: RED, l: "[NESW] Surge from" }, "saving an ability keeps the tile's doors");
+check(markAfter({ c: RED, l: "[N] surge" }, { c: BLUE, text: "dive" }, null, "toggle"), { c: BLUE, l: "[N] dive" }, "a new colour or label keeps the doors");
+check(markAfter({ c: RED, l: "[N] surge" }, { c: BLUE, text: "dive" }, "W", "toggle"), { c: BLUE, l: "[NW] dive" }, "with a door picked it is added to the doors");
 
 const data = JSON.parse(readFileSync(new URL("../public/rooms.json", import.meta.url)));
 const families = indexRooms(data);
