@@ -387,6 +387,9 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
     [families, separate, themeIndex, group.id, variant]);
   const isSeparate = separate.includes(separateKey(themeIndex, group.id));
   const familySize = families.get(variant.family).length;
+  // Squares in the copy grid: this room's variants in every theme, plus copies elsewhere.
+  const squares = data.themes.reduce((n, t) => n + (t.sections.flatMap((x) => x.groups).find((g) => g.id === group.id)?.variants.length || 0), 0)
+    + rooms.filter((r) => r.groupId !== group.id).length;
 
   // Applies a click to these tiles ({ tx, tz, c, text }) in every copy; see markAfter.
   const apply = useCallback((tiles, mode) => {
@@ -517,7 +520,8 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
         <aside className="tools">
           <div className="panel stack">
             <h3 title="Marks go to every copy of this room.">
-              {rooms.length > 1 ? `Shared with ${rooms.length - 1} ${rooms.length === 2 ? "copy" : "copies"}` : "No copies"}
+              {rooms.length === 1 ? "Not shared"
+                : rooms.length === squares ? `Shared by all ${rooms.length} rooms` : `Shared by ${rooms.length} rooms`}
             </h3>
             {(rooms.length > 1 || group.variants.length > 1) && (
               <CopyGrid data={data} byPos={byPos} group={group} current={`${group.col}:${variant.row}`} copies={rooms}
