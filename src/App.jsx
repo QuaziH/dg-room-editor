@@ -189,38 +189,16 @@ function describePlaces(data, tiles) {
   return [...places.keys()].slice(0, 4).join(", ") + (places.size > 4 ? ` and ${places.size - 4} more rooms` : "");
 }
 
-function ExportPanel({ data, markers, themeIndex, group, sectionId, onImport, onClose }) {
-  const [scope, setScope] = useState("theme");
-  const [name, setName] = useState(`DG ${data.themes[themeIndex].name}`);
+function ExportPanel({ data, markers, onImport, onClose }) {
+  const [name, setName] = useState("DG markers");
   const [importText, setImportText] = useState("");
   const [message, setMessage] = useState(null);
   const [copied, setCopied] = useState(false);
 
-  const tiles = useMemo(() => {
-    const keep = new Set();
-    const addGroup = (theme, g) => {
-      for (const v of g.variants) {
-        const { x, z } = roomOrigin(g.col, v.row);
-        for (let tz = 0; tz < ROOM; tz++) for (let tx = 0; tx < ROOM; tx++) keep.add(tileKey(x + tx, z + tz));
-      }
-    };
-    if (scope === "room" && group) {
-      for (const theme of data.themes) {
-        const g = findGroup(theme, sectionId, group.id);
-        if (g) addGroup(theme, g);
-      }
-    }
-    if (scope === "theme") {
-      const theme = data.themes[themeIndex];
-      for (const s of theme.sections) for (const g of s.groups) addGroup(theme, g);
-    }
-    return Object.entries(markers)
-      .filter(([k]) => scope === "all" || keep.has(k))
-      .map(([k, m]) => {
-        const [x, z] = k.split(":").map(Number);
-        return { x, z, level: 0, outlineColour: m.c, fillColour: derivedFill(m.c), label: m.l || "" };
-      });
-  }, [scope, markers, data, themeIndex, group, sectionId]);
+  const tiles = useMemo(() => Object.entries(markers).map(([k, m]) => {
+    const [x, z] = k.split(":").map(Number);
+    return { x, z, level: 0, outlineColour: m.c, fillColour: derivedFill(m.c), label: m.l || "" };
+  }), [markers]);
 
   const key = useMemo(() => {
     try { return tiles.length ? encode(name || "DG markers", tiles) : ""; } catch { return ""; }
@@ -248,16 +226,11 @@ function ExportPanel({ data, markers, themeIndex, group, sectionId, onImport, on
   return (
     <div className="sheet" role="dialog" aria-label="Export and import">
       <div className="sheet-head">
-        <h2>Export to Tile Markers</h2>
+        <h2>Export / Import</h2>
         <button type="button" className="ghost" onClick={onClose}>Close</button>
       </div>
       <div className="sheet-body">
         <section className="stack">
-          <div className="seg" role="radiogroup" aria-label="What to export">
-            {group && <button type="button" aria-pressed={scope === "room"} onClick={() => setScope("room")}>This room, all themes</button>}
-            <button type="button" aria-pressed={scope === "theme"} onClick={() => setScope("theme")}>{data.themes[themeIndex].name}</button>
-            <button type="button" aria-pressed={scope === "all"} onClick={() => setScope("all")}>Everything</button>
-          </div>
           <label className="field">
             <span>Preset name</span>
             <input id="preset-name" value={name} maxLength={64} onChange={(e) => setName(e.target.value)} />
@@ -266,7 +239,7 @@ function ExportPanel({ data, markers, themeIndex, group, sectionId, onImport, on
             <textarea id="export-key" readOnly value={key || "Mark some tiles first."} rows={4} onFocus={(e) => e.target.select()} />
             <button type="button" className="primary" disabled={!key} onClick={copy}>{copied ? "Copied" : "Copy key"}</button>
           </div>
-          <p className="note">{tiles.length} tiles. In game: Tile Markers → Presets → Import, then paste the key. Markers turn with the room automatically.</p>
+          <p className="note">All {tiles.length} marks. In game: Tile Markers → Presets → Import, and paste.</p>
         </section>
         <section className="stack">
           <h3>Load a key</h3>
@@ -710,9 +683,7 @@ export default function App() {
       </footer>
 
       {showExport && (
-        <ExportPanel data={data} markers={markers} themeIndex={themeIndex}
-          group={openGroup} sectionId={open && open.sectionId}
-          onImport={importTiles} onClose={() => setShowExport(false)} />
+        <ExportPanel data={data} markers={markers} onImport={importTiles} onClose={() => setShowExport(false)} />
       )}
     </div>
   );
