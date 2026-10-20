@@ -124,10 +124,9 @@ function Board({ theme, group, variant, rotation, markers, overlay, onTile, onTi
       const tz = ROOM - 1 - sy;
       const raw = markers[tileKey(ox + tx, oz + tz)];
       const parts = raw && splitTag(raw.l);
-      // With a door picked, marks for other doors fade: the tile is taken.
-      const other = raw && doorSide && parts.tag && !parts.tag.includes(doorSide);
-      // Door letters are the template's sides, whichever way the view is turned.
-      const m = raw && { c: raw.c, l: raw.l };
+      // Door marks stay faded until their door is picked; any-door marks are always bright.
+      const other = raw && parts.tag && !(doorSide && parts.tag.includes(doorSide));
+      const m = raw && { c: raw.c, l: parts.text };
       const key = `${tx},${tz}`;
       const cls = ["tile"];
       if (overlay.path.has(key)) cls.push("t-path");
@@ -140,8 +139,8 @@ function Board({ theme, group, variant, rotation, markers, overlay, onTile, onTi
           key={key}
           type="button"
           className={cls.join(" ")}
-          aria-label={`Tile ${tx}, ${tz}${other ? ", marked for another door" : m ? `, marked${m.l ? ` "${m.l}"` : ""}` : ""}`}
-          title={other ? "Marked for another door" : raw ? doorsText(parts.tag, rotation) : undefined}
+          aria-label={`Tile ${tx}, ${tz}${m ? `, marked${m.l ? ` "${m.l}"` : ""}` : ""}`}
+          title={raw ? doorsText(parts.tag, rotation) : undefined}
           onClick={() => onTile(tx, tz)}
           onContextMenu={(e) => { e.preventDefault(); onTileErase(tx, tz); }}
           style={m ? { "--mk": css(m.c) } : undefined}
