@@ -4,7 +4,8 @@
 // Template layout (one block per theme, same order everywhere):
 //   normal rooms  rows T..T+4 (all columns) and T+8..T+12 (columns <= 12), T = 120 + 24*i
 //   puzzle rooms  rows P..P+6, P = 264 + 8*i, one column per puzzle
-//   home / boss   rows H..H+4, H = 312 + 8*i; column 7 is the home room
+//   home / special rows H..H+4, H = 312 + 8*i; column 7 is the home room, and in
+//                 columns 12-15 every row is its own room
 // Each column is one layout; the rows under it are its door variants.
 const fs = require("fs");
 const path = require("path");
@@ -111,10 +112,18 @@ function buildTheme(index) {
     if (g) puzzles.push(g);
   }
   const special = [];
-  for (const col of [7, 4, 5, 6, 12, 13, 14, 15]) {
+  for (const col of [7, 4, 5, 6]) {
     const name = col === 7 ? "Home" : `Special ${col}`;
     const g = group(`h${col}`, name, col, range(H, H + 4));
     if (g) special.push(g);
+  }
+  // In these columns each row is a different room, not a door variant.
+  for (const col of [12, 13, 14, 15]) {
+    for (const row of range(H, H + 4)) {
+      const letter = "abcde"[row - H];
+      const g = group(`h${col}${letter}`, `Special ${col}${letter}`, col, [row]);
+      if (g) special.push(g);
+    }
   }
 
   const rows = Math.ceil(sheetRooms.length / SHEET_COLS);

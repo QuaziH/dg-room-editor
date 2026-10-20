@@ -673,7 +673,7 @@ export default function App() {
 
       <nav className="themes" aria-label="Themes">
         {data.themes.map((t, i) => (
-          <button key={t.id} type="button" className={`theme-tab tab-${t.id}`} aria-pressed={i === themeIndex}
+          <button key={t.id} type="button" className={`theme-tab theme-${t.id}`} aria-pressed={i === themeIndex}
             onClick={() => { setThemeIndex(i); saveTheme(i); }}>
             {t.name}
           </button>
