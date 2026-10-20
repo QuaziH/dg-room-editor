@@ -209,3 +209,8 @@ button.danger-solid { background: var(--err); color: #fff; border: 1px solid tra
 .door-status { margin: 0; text-align: center; font-size: 13px; color: var(--muted); }
 .door-status.on { color: var(--accent); font-weight: 600; }
 button.link { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; font: inherit; cursor: pointer; }
+.tag {
+  display: inline-block; margin-left: 10px; vertical-align: middle; padding: 3px 8px; border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); color: var(--accent);
+  font: 600 11px/1 var(--body); letter-spacing: 0.06em; text-transform: uppercase;
+}

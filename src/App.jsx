@@ -479,7 +479,7 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, mark
       <header className="editor-head">
         <button type="button" className="ghost back" onClick={onClose}>← {theme.name}</button>
         <div className="editor-title">
-          <h2>{group.name}{isSeparate && <span className="pill">Separate copy</span>}</h2>
+          <h2>{group.name}{isSeparate && <span className="tag">Separate</span>}</h2>
           <span className="coords">template col {group.col} · row {variant.row} · {marked} marked</span>
         </div>
       </header>
