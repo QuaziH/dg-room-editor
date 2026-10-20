@@ -189,18 +189,17 @@ textarea { font: 12px/1.4 var(--mono); resize: vertical; word-break: break-all; 
 /* Doorway buttons: always in the theme colour so they read as clickable. */
 .doorway {
   position: absolute; z-index: 2; display: grid; place-items: center; padding: 0;
-  border: 2px solid var(--accent); border-radius: 8px;
-  background: color-mix(in srgb, var(--accent) 30%, var(--stone-1)); color: var(--accent);
+  border: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); border-radius: 8px;
+  background: var(--stone-1); color: var(--accent);
   font-size: 16px; font-weight: 700; line-height: 1;
-  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 45%, transparent);
   transition: background .15s, color .15s, opacity .15s, transform .15s;
 }
-.doorway:hover { background: var(--accent); color: var(--accent-ink); }
+.doorway:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--stone-1)); }
 .doorway[aria-pressed="true"] {
   background: var(--accent); color: var(--accent-ink);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent), 0 0 18px var(--accent);
 }
-.doorway[data-dimmed] { opacity: .35; box-shadow: none; }
+.doorway[data-dimmed] { opacity: .35; }
 .doorway-N, .doorway-S { left: 50%; width: 18.75%; height: 26px; translate: -50% 0; }
 .doorway-E, .doorway-W { top: 50%; height: 18.75%; width: 26px; translate: 0 -50%; }
 .doorway-N { top: -22px; } .doorway-S { bottom: -22px; }
