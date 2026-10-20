@@ -548,7 +548,7 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, mark
                 </div>
                 {recent.length > 0 && (
                   <div className="recent">
-                    <span className="muted">Recent</span>
+                    <span className="recent-title">Recent</span>
                     {recent.map((c) => (
                       <button key={c} type="button" className="swatch small" aria-label={`Recent colour ${toHex(c)}`}
                         aria-pressed={colour === c} style={{ "--sw": css(c) }} onClick={() => setColour(c)} />
@@ -556,7 +556,7 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, mark
                   </div>
                 )}
                 <label className="field">
-                  <span>Label (optional)</span>
+                  <span>Text above the tile in game (optional)</span>
                   <input id="marker-label" value={label} maxLength={24} placeholder="e.g. surge here" onChange={(e) => setLabel(e.target.value)} />
                 </label>
               </div>
