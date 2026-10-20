@@ -187,8 +187,6 @@ textarea { font: 12px/1.4 var(--mono); resize: vertical; word-break: break-all; 
 .compass button { height: 36px; border-radius: 8px; border: 1px solid var(--line); background: var(--stone-2); font-size: 16px; }
 .compass button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 .compass-you { display: grid; place-items: center; color: var(--muted); font-size: 10px; }
-.door-any { width: 100%; border-radius: 8px; padding: 7px; border: 1px solid var(--line); background: var(--stone-2); font-size: 13px; margin-bottom: 8px; }
-.door-any[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 700; }
 .doorway {
   position: absolute; z-index: 2; display: grid; place-items: center; padding: 0;
   border: 1px solid var(--line); border-radius: 6px; background: var(--stone-2); color: var(--muted);
@@ -204,3 +202,6 @@ textarea { font: 12px/1.4 var(--mono); resize: vertical; word-break: break-all; 
 .doorway-N { top: -16px; } .doorway-S { bottom: -16px; }
 .doorway-W { left: -16px; } .doorway-E { right: -16px; }
 button.danger-solid { background: var(--err); color: #fff; border: 1px solid transparent; border-radius: 8px; padding: 8px 12px; font-weight: 700; }
+.door-status { margin: 0; text-align: center; font-size: 13px; color: var(--muted); }
+.door-status.on { color: var(--accent); font-weight: 600; }
+button.link { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; font: inherit; cursor: pointer; }

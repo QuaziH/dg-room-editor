@@ -478,6 +478,14 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, mark
         <div className="board-col">
           <Board theme={theme} group={group} variant={variant} rotation={rotation}
             markers={markers} ability={{ overlay }} onTile={onTile} onTileErase={onTileErase} doorSide={doorSide} setDoorSide={setDoorSide} />
+          <p className={doorSide ? "door-status on" : "door-status"}>
+            {doorSide ? (
+              <>
+                Marking for the glowing door only.{" "}
+                <button type="button" className="link" onClick={() => setDoorSide(null)}>Back to any door</button>
+              </>
+            ) : "Marks show from any door. Click a doorway arrow to mark for one door only."}
+          </p>
           <div className="rotate-bar">
             <button type="button" onClick={() => setRotation((r) => (r + 3) % 4)} aria-label="Turn left">⟲</button>
             <span className="rot-readout">{rotation === 0 ? "As in the template" : `Turned ${rotation * 90}°`}</span>
@@ -504,16 +512,6 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, mark
               </div>
             </div>
           )}
-
-          <div className="panel">
-            <h3>Came in through</h3>
-            <button type="button" className="door-any" aria-pressed={doorSide === null} onClick={() => setDoorSide(null)}>Any door</button>
-            <p className="note">
-              {doorSide
-                ? "New marks only show in game when you come in through the glowing door. Marks for other doors are hidden here. Click the door again to go back to any door."
-                : "Marks show whichever door you come in through. To make marks for one door only, click the arrow in that doorway on the room."}
-            </p>
-          </div>
 
           <div className="panel">
             <div className="seg tools-seg">
