@@ -732,7 +732,6 @@ export default function App() {
                 </section>
               );
             })}
-            <p className="note credit">Room pictures from mejrs' RuneScape map. Puzzle names from dg-utils.</p>
           </>
         )}
       </main>

@@ -167,7 +167,6 @@ textarea { font: 12px/1.4 var(--mono); resize: vertical; word-break: break-all; 
 .note.center { text-align: center; }
 .note.ok { color: var(--ok); }
 .note.err { color: var(--err); }
-.credit { margin-top: 40px; }
 
 /* Export sheet */
 .sheet {
