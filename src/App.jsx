@@ -382,7 +382,10 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
     const i = group.variants.findIndex((v) => markersInRoom(markers, group.col, v.row).length > 0);
     return i < 0 ? 0 : i;
   });
-  const [rotation, setRotation] = useState(0);
+  // Quarter turns of the view, kept unbounded so the board always animates the
+  // short way round; rotation is the same turn as 0-3.
+  const [turns, setTurns] = useState(0);
+  const rotation = ((turns % 4) + 4) % 4;
   const [tool, setTool] = useState("mark");
   const [colour, setColour] = useState(SWATCHES[0].rgba);
   const [recent, setRecent] = useState(loadRecent);
@@ -546,7 +549,7 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
 
       <div className="editor-body">
         <div className="board-col">
-          <Board theme={theme} group={group} variant={variant} rotation={rotation}
+          <Board theme={theme} group={group} variant={variant} rotation={turns}
             markers={markers} ability={{ overlay }} onTile={onTile} onTileErase={onTileErase} doorSide={doorSide} setDoorSide={setDoorSide} />
           <p className={doorSide ? "door-status on" : "door-status"}>
             {doorSide ? (
@@ -557,9 +560,9 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
             ) : "Marks show from any door. Click a doorway arrow to mark for one door only."}
           </p>
           <div className="rotate-bar">
-            <button type="button" onClick={() => setRotation((r) => (r + 3) % 4)} aria-label="Turn left">⟲</button>
+            <button type="button" onClick={() => setTurns((t) => t - 1)} aria-label="Turn left">⟲</button>
             <span className="rot-readout">{rotation === 0 ? "As in the template" : `Turned ${rotation * 90}°`}</span>
-            <button type="button" onClick={() => setRotation((r) => (r + 1) % 4)} aria-label="Turn right">⟳</button>
+            <button type="button" onClick={() => setTurns((t) => t + 1)} aria-label="Turn right">⟳</button>
           </div>
           <p className="note center">Turn the room to match what you see in game. Saved markers aren't affected, and they show in every rotation.</p>
         </div>
