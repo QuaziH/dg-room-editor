@@ -147,7 +147,7 @@ button.back:hover { color: var(--accent); }
 .recent-title { color: var(--muted); font-size: 13px; }
 .field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
 .field.inline { flex-direction: row; align-items: center; justify-content: space-between; }
-.field input, .key-input, textarea {
+.field input, .key-field input, textarea {
   background: var(--stone-0); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; color: var(--text); width: 100%;
 }
 .field.inline input { width: 80px; font-variant-numeric: tabular-nums; }
@@ -170,7 +170,6 @@ textarea { font: 12px/1.4 var(--mono); resize: vertical; word-break: break-all; 
 .sheet-head h2 { font: 600 26px/1 var(--display); margin: 0; }
 .sheet-body { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 24px; max-width: 960px; margin: 0 auto; }
 @media (max-width: 720px) { .sheet-body { grid-template-columns: minmax(0, 1fr); } }
-.keybox { display: flex; flex-direction: column; gap: 8px; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 .compass { display: grid; grid-template-columns: repeat(3, 36px); gap: 4px; }
@@ -222,4 +221,13 @@ button.danger-solid { background: var(--err); color: #fff; border: 1px solid tra
 .copy-thumb:not([data-shared]) { opacity: .35; }
 .copy-thumb:not([data-shared]):hover { opacity: .8; }
 .copy-elsewhere .copy-thumbs { grid-column: 2 / -1; }
-.key-input { font: 12px var(--mono); }
+.key-row { display: flex; gap: 8px; }
+.key-row .key-field { flex: 1; }
+.key-field { position: relative; }
+.key-field input { padding-right: 40px; font: 12px var(--mono); text-overflow: ellipsis; }
+.icon-button {
+  position: absolute; right: 4px; top: 50%; translate: 0 -50%; display: grid; place-items: center;
+  width: 30px; height: 30px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted);
+}
+.icon-button:hover:not(:disabled) { color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); }
+.icon-button:disabled { opacity: .4; cursor: default; }

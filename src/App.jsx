@@ -169,6 +169,19 @@ function Board({ theme, group, variant, rotation, markers, overlay, onTile, onTi
   );
 }
 
+const ICONS = {
+  copy: "M9 9h10v10H9zM5 15V5h10",
+  check: "M5 12l5 5L19 7",
+  paste: "M9 4h6v3H9zM7 6H5v14h14V6h-2",
+};
+
+function Icon({ name }) {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={ICONS[name]} /></svg>
+  );
+}
+
 function ExportPanel({ markers, onImport, onClose }) {
   const [name, setName] = useState("DG markers");
   const [importText, setImportText] = useState("");
@@ -184,19 +197,16 @@ function ExportPanel({ markers, onImport, onClose }) {
     try { return tiles.length ? encode(name || "DG markers", tiles) : ""; } catch { return ""; }
   }, [tiles, name]);
 
-  const copy = (e) => {
-    const area = e.currentTarget.parentElement.querySelector("textarea");
-    navigator.clipboard?.writeText(key).then(() => setCopied(true), () => area.select());
-    if (!navigator.clipboard) area.select();
+  const copy = () => navigator.clipboard.writeText(key).then(() => {
+    setCopied(true);
     setTimeout(() => setCopied(false), 1600);
-  };
+  });
 
-  // Loads a key as soon as it's pasted or typed in full.
-  const load = (text) => {
-    setImportText(text);
-    if (!text.trim()) { setMessage(null); return; }
+  const paste = () => navigator.clipboard.readText().then(setImportText, () => {});
+
+  const load = () => {
     try {
-      const added = onImport(decode(text.trim()).tiles);
+      const added = onImport(decode(importText.trim()).tiles);
       setMessage({ ok: true, text: `Loaded ${added} ${added === 1 ? "mark" : "marks"}.` });
       setImportText("");
     } catch {
@@ -212,20 +222,32 @@ function ExportPanel({ markers, onImport, onClose }) {
       </div>
       <div className="sheet-body">
         <section className="stack">
+          <h3>Export</h3>
           <label className="field">
             <span>Preset name</span>
             <input id="preset-name" value={name} maxLength={64} onChange={(e) => setName(e.target.value)} />
           </label>
-          <div className="keybox">
-            <textarea id="export-key" readOnly value={key || "Mark some tiles first."} rows={4} onFocus={(e) => e.target.select()} />
-            <button type="button" className="primary" disabled={!key} onClick={copy}>{copied ? "Copied" : "Copy key"}</button>
+          <div className="key-field">
+            <input id="export-key" readOnly value={key} placeholder="Mark some tiles first" onFocus={(e) => e.target.select()} />
+            <button type="button" className="icon-button" disabled={!key} onClick={copy}
+              aria-label={copied ? "Copied" : "Copy key"} title={copied ? "Copied" : "Copy key"}>
+              <Icon name={copied ? "check" : "copy"} />
+            </button>
           </div>
           <p className="note">All {tiles.length} marks. In game: Tile Markers → Presets → Import, and paste.</p>
         </section>
         <section className="stack">
-          <h3>Load a key</h3>
-          <input id="import-key" className="key-input" placeholder="Paste a TM2… key" value={importText}
-            onChange={(e) => load(e.target.value)} />
+          <h3>Import</h3>
+          <div className="key-row">
+            <div className="key-field">
+              <input id="import-key" placeholder="Paste a TM2… key" value={importText}
+                onChange={(e) => { setImportText(e.target.value); setMessage(null); }} />
+              <button type="button" className="icon-button" onClick={paste} aria-label="Paste" title="Paste">
+                <Icon name="paste" />
+              </button>
+            </div>
+            <button type="button" className="primary" onClick={load} disabled={!importText.trim()}>Load</button>
+          </div>
           {message && <p className={message.ok ? "note ok" : "note err"}>{message.text}</p>}
         </section>
       </div>
