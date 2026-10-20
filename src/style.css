@@ -251,3 +251,9 @@ button.danger-solid { background: var(--err); color: #fff; border: 1px solid tra
 .dive-range {
   position: absolute; z-index: 2; pointer-events: none; border: 2px dashed var(--jump, var(--accent)); border-radius: 4px;
 }
+.card { position: relative; }
+.card-separate {
+  position: absolute; top: 8px; right: 8px; padding: 3px 7px; border-radius: 6px;
+  background: var(--stone-0); border: 1px solid var(--accent); color: var(--accent);
+  font: 600 10px/1 var(--body); letter-spacing: .06em; text-transform: uppercase;
+}

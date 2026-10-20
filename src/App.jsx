@@ -93,10 +93,11 @@ function Sprite({ theme, sprite, className }) {
   );
 }
 
-function RoomCard({ theme, group, count, onOpen }) {
+function RoomCard({ theme, group, count, isSeparate, onOpen }) {
   return (
     <button className="card" onClick={onOpen} type="button">
       <Sprite theme={theme} sprite={group.variants[0].sprite} className="card-img" />
+      {isSeparate && <span className="card-separate" title="Separate: has its own marks">Separate</span>}
       <span className="card-name">{group.name}</span>
       <span className="card-meta">
         {group.variants.length} door {group.variants.length === 1 ? "variant" : "variants"}
@@ -686,6 +687,7 @@ export default function App() {
                     <div className="cards">
                       {groups.map((g) => (
                         <RoomCard key={g.id} theme={theme} group={g} count={countGroupMarks(markers, g, byPos, separate)}
+                          isSeparate={separate.includes(separateKey(themeIndex, g.id))}
                           onOpen={() => { scrollRef.current = window.scrollY; setOpen({ sectionId: section.id, groupId: g.id }); window.scrollTo(0, 0); }} />
                       ))}
                     </div>
