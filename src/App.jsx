@@ -326,26 +326,51 @@ function ExportPanel({ data, markers, themeIndex, group, sectionId, onImport, on
   );
 }
 
-// Small pictures of the rooms that share marks with this one, by theme.
-function CopyList({ data, copies, current, onJump }) {
-  const byTheme = data.themes.map((theme, t) => ({ theme, t, rooms: copies.filter((r) => r.t === t) }))
-    .filter((g) => g.rooms.length);
+// Every theme's door variants of this room as a grid (themes down, variants
+// across). Copies that share marks with the open room are lit; the rest keep
+// their own marks. Copies elsewhere in the template are listed underneath.
+function CopyGrid({ data, byPos, group, current, copies, onPick }) {
+  const shared = new Set(copies.map((r) => `${r.col}:${r.row}`));
+  const rows = data.themes.map((theme, t) => {
+    const own = theme.sections.flatMap((s) => s.groups).find((g) => g.id === group.id);
+    return { theme, t, variants: own ? own.variants : [] };
+  });
+  const columns = Math.max(...rows.map((r) => r.variants.length));
+  const elsewhere = copies.filter((r) => r.groupId !== group.id);
+  const cell = (theme, room, label) => {
+    const key = `${room.col}:${room.row}`;
+    const isCurrent = key === current;
+    return (
+      <button key={key} type="button" className="copy-thumb" onClick={() => onPick(room)}
+        aria-current={isCurrent ? "true" : undefined} data-shared={shared.has(key) ? "" : undefined}
+        title={`${label}${isCurrent ? " (open)" : shared.has(key) ? "" : " (own marks)"}`}>
+        <Sprite theme={theme} sprite={room.sprite} className="copy-img" />
+      </button>
+    );
+  };
   return (
-    <div className="copy-list">
-      {byTheme.map(({ theme, t, rooms }) => (
+    <div className="copy-grid" style={{ "--cols": columns }}>
+      <span />
+      {Array.from({ length: columns }, (_, v) => (
+        <span key={v} className="copy-col">{doorShape(group.variants[v] && group.variants[v].doors)}</span>
+      ))}
+      {rows.map(({ theme, t, variants }) => (
         <div key={t} className={`copy-row theme-${theme.id}`}>
           <span className="copy-theme">{theme.name}</span>
-          <div className="copy-thumbs">
-            {rooms.map((r) => (
-              <button key={`${r.col}:${r.row}`} type="button" className="copy-thumb" onClick={() => onJump(r)}
-                aria-current={r.col === current.col && r.row === current.row ? "true" : undefined}
-                title={`${theme.name} ${r.groupName}, door variant ${r.v + 1}${r.col === current.col && r.row === current.row ? " (this one)" : ""}`}>
-                <Sprite theme={theme} sprite={r.sprite} className="copy-img" />
-              </button>
-            ))}
-          </div>
+          {Array.from({ length: columns }, (_, v) => {
+            const room = variants[v] && byPos.get(`${group.col}:${variants[v].row}`);
+            return room ? cell(theme, room, `${theme.name} ${group.name}, ${doorShape(variants[v].doors)}`) : <span key={v} />;
+          })}
         </div>
       ))}
+      {elsewhere.length > 0 && (
+        <div className="copy-elsewhere">
+          <span className="copy-theme">Also</span>
+          <div className="copy-thumbs">
+            {elsewhere.map((r) => cell(data.themes[r.t], r, `${data.themes[r.t].name} ${r.groupName}`))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -401,6 +426,8 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
     [families, separate, themeIndex, group.id, variant]);
   const isSeparate = separate.has(separateKey(themeIndex, group.id));
   const familySize = families.get(variant.family).length;
+  const byPos = useMemo(
+    () => new Map([...families.values()].flat().map((r) => [`${r.col}:${r.row}`, r])), [families]);
 
   // mode: "set", "erase" or "toggle". Tiles carry { tx, tz, c, text }; the
   // current door (if any) is added to or removed from the marker's door tag.
@@ -519,21 +546,6 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
 
       <div className="editor-body">
         <div className="board-col">
-          {group.variants.length > 1 && (
-            <div className="variant-bar" role="radiogroup" aria-label="Door variant">
-              {group.variants.map((v, i) => {
-                const n = markersInRoom(markers, group.col, v.row).length;
-                return (
-                  <button key={v.row} type="button" className="variant" aria-pressed={i === variantIndex}
-                    onClick={() => setVariantIndex(i)}>
-                    <Sprite theme={theme} sprite={v.sprite} className="variant-img" />
-                    <span className="variant-name">{doorShape(v.doors)}</span>
-                    {n > 0 && <span className="variant-count">{n}</span>}
-                  </button>
-                );
-              })}
-            </div>
-          )}
           <Board theme={theme} group={group} variant={variant} rotation={rotation}
             markers={markers} ability={{ overlay }} onTile={onTile} onTileErase={onTileErase} doorSide={doorSide} setDoorSide={setDoorSide} />
           <p className={doorSide ? "door-status on" : "door-status"}>
@@ -553,6 +565,33 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
         </div>
 
         <aside className="tools">
+          <div className="panel stack">
+            <h3 title="Marks go to every copy of this room.">
+              {rooms.length > 1 ? `Shared with ${rooms.length - 1} ${rooms.length === 2 ? "copy" : "copies"}` : "No copies"}
+            </h3>
+            {(rooms.length > 1 || group.variants.length > 1) && (
+              <CopyGrid data={data} byPos={byPos} group={group} current={`${group.col}:${variant.row}`} copies={rooms}
+                onPick={(r) => (r.t === themeIndex && r.groupId === group.id ? setVariantIndex(r.v) : onJump(r))} />
+            )}
+            {familySize > 1 && (isSeparate ? (
+              <>
+                <button type="button" onClick={linkAgain}
+                  title="Rejoin the other copies. This copy takes their marks in place of its own.">Link again</button>
+              </>
+            ) : (
+              <>
+                <button type="button" onClick={makeSeparate}
+                  title="Only if the game shows this copy is different, like an extra wall.">Make {separateName} separate</button>
+              </>
+            ))}
+            {clearable > 0 && (
+              <button type="button" className={confirmClear ? "danger-solid" : "ghost danger"} onClick={clearRoom}>
+                {confirmClear
+                  ? `Click again to remove ${clearable} ${clearable === 1 ? "mark" : "marks"}`
+                  : doorSide ? "Clear this door's marks" : "Clear this room"}
+              </button>
+            )}
+          </div>
           <div className="panel">
             <div className="seg tools-seg">
               <button type="button" aria-pressed={tool === "mark"} onClick={() => setTool("mark")}
@@ -625,33 +664,6 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
             )}
           </div>
 
-          <div className="panel stack">
-            <h3 title="Marks go to every copy of this room.">
-              {rooms.length > 1 ? `Shared with ${rooms.length - 1} ${rooms.length === 2 ? "copy" : "copies"}` : "No copies"}
-            </h3>
-            {rooms.length > 1 && (
-              <CopyList data={data} copies={rooms} current={{ col: group.col, row: variant.row }}
-                onJump={(r) => (r.t === themeIndex && r.groupId === group.id ? setVariantIndex(r.v) : onJump(r))} />
-            )}
-            {familySize > 1 && (isSeparate ? (
-              <>
-                <button type="button" onClick={linkAgain}
-                  title="Rejoin the other copies. This copy takes their marks in place of its own.">Link again</button>
-              </>
-            ) : (
-              <>
-                <button type="button" onClick={makeSeparate}
-                  title="Only if the game shows this copy is different, like an extra wall.">Make {separateName} separate</button>
-              </>
-            ))}
-            {clearable > 0 && (
-              <button type="button" className={confirmClear ? "danger-solid" : "ghost danger"} onClick={clearRoom}>
-                {confirmClear
-                  ? `Click again to remove ${clearable} ${clearable === 1 ? "mark" : "marks"}`
-                  : doorSide ? "Clear this door's marks" : "Clear this room"}
-              </button>
-            )}
-          </div>
         </aside>
       </div>
     </div>
