@@ -1,6 +1,6 @@
 import { encode, decode, derivedFill } from "./codec.js";
 import {
-  ROOM, tileKey, roomOrigin, findGroup, markersInRoom, indexRooms, copiesOf,
+  ROOM, inRoom, tileKey, roomOrigin, findGroup, markersInRoom, indexRooms, copiesOf,
   separateKey, turnTile, turnSides, splitTag, joinTag, toMarker, markAfter, roomsByPos,
   countMarks, countGroupMarks, straightPath, diveTargets,
 } from "./rooms.js";
@@ -122,6 +122,11 @@ function Board({ theme, group, variant, rotation, markers, overlay, jumpColour, 
       if (overlay.path.has(key)) cls.push("t-path");
       if (overlay.end === key) cls.push("t-end");
       if (overlay.start === key) cls.push("t-start");
+      // Wall tiles can't be marked; old marks there can still be removed.
+      if (!inRoom(tx, tz) && !raw) {
+        cells.push(<span key={key} />);
+        continue;
+      }
       cells.push(
         <button
           key={key}
@@ -363,7 +368,7 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
     const hovered = (arrows.find((a) => a.key === hover) || { path: [] }).path;
     const reach = new Set(tool === "dive" && start ? diveTargets(start, ranges.dive).map(at) : []);
     // Dive shows its range as one outline; only the tile under the pointer lights up.
-    const clamp = (v) => Math.max(0, Math.min(ROOM - 1, v));
+    const clamp = (v) => Math.max(1, Math.min(ROOM - 2, v));
     const range = reach.size ? {
       x0: clamp(start.tx - ranges.dive), x1: clamp(start.tx + ranges.dive),
       z0: clamp(start.tz - ranges.dive), z1: clamp(start.tz + ranges.dive),
@@ -425,6 +430,7 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
   const onTile = (tx, tz) => {
     const existing = markerAt(tx, tz);
     if (existing && existing.pair) { removePair(existing.pair); return; }
+    if (!inRoom(tx, tz)) { apply([{ tx, tz }], "erase"); return; }
     if (tool === "mark") {
       // Clicking a tile that already has this exact marker removes it.
       const placed = markAfter(existing, { c: colour, text: label.trim() }, doorSide, "toggle");

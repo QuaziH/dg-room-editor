@@ -3,6 +3,9 @@
 
 export const ROOM = 16;
 
+// The outer ring of a room is its wall; only the tiles inside can be stood on.
+export const inRoom = (tx, tz) => tx >= 1 && tz >= 1 && tx <= ROOM - 2 && tz <= ROOM - 2;
+
 export const tileKey = (x, z) => `${x}:${z}`;
 
 export function roomOrigin(col, row) {
@@ -130,7 +133,7 @@ export function countGroupMarks(markers, group, byPos, separate) {
   return countMarks(keys, byPos, separate);
 }
 
-// Tiles a straight-line ability passes through, stopping at the room edge.
+// Tiles a straight-line ability passes through, stopping at the wall.
 // Objects aren't known, so nothing inside the room stops it. Returns the path
 // without the start tile.
 export function straightPath(start, dir, range) {
@@ -138,20 +141,20 @@ export function straightPath(start, dir, range) {
   let { tx, tz } = start;
   for (let i = 0; i < range; i++) {
     const nx = tx + dir[0], nz = tz + dir[1];
-    if (nx < 0 || nz < 0 || nx >= ROOM || nz >= ROOM) break;
+    if (!inRoom(nx, nz)) break;
     tx = nx; tz = nz;
     path.push({ tx, tz });
   }
   return path;
 }
 
-// Tiles a dive can land on: anything in range inside the room.
+// Tiles a dive can land on: anything in range inside the walls.
 export function diveTargets(start, range) {
   const targets = [];
   for (let tz = 0; tz < ROOM; tz++) {
     for (let tx = 0; tx < ROOM; tx++) {
       const d = Math.max(Math.abs(tx - start.tx), Math.abs(tz - start.tz));
-      if (d === 0 || d > range) continue;
+      if (d === 0 || d > range || !inRoom(tx, tz)) continue;
       targets.push({ tx, tz });
     }
   }
