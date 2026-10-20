@@ -331,9 +331,8 @@ function CopyList({ data, copies, onJump }) {
           <div className="copy-thumbs">
             {rooms.map((r) => (
               <button key={`${r.col}:${r.row}`} type="button" className="copy-thumb" onClick={() => onJump(r)}
-                title={`${theme.name} ${r.groupName}, door variant ${r.v + 1}${r.delta ? " (turned to fit)" : ""}`}>
+                title={`${theme.name} ${r.groupName}, door variant ${r.v + 1}`}>
                 <Sprite theme={theme} sprite={r.sprite} className="copy-img" />
-                {r.delta > 0 && <span className="copy-turn" aria-label="turned">↻</span>}
               </button>
             ))}
           </div>
@@ -621,7 +620,7 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
           </div>
 
           <div className="panel stack">
-            <h3 title="Marks go to every copy of this room, turned to fit.">
+            <h3 title="Marks go to every copy of this room.">
               {rooms.length > 1 ? `Shared with ${rooms.length - 1} ${rooms.length === 2 ? "copy" : "copies"}` : "No copies"}
             </h3>
             {rooms.length > 1 && (
