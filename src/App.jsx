@@ -421,10 +421,22 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, mark
     ], "set");
   };
 
+  // Clearing asks for a second click; with a door picked it only clears that door's marks.
+  const [confirmClear, setConfirmClear] = useState(false);
+  useEffect(() => setConfirmClear(false), [doorSide, variantIndex]);
+  useEffect(() => {
+    if (!confirmClear) return undefined;
+    const timer = setTimeout(() => setConfirmClear(false), 4000);
+    return () => clearTimeout(timer);
+  }, [confirmClear]);
+  const clearable = markersInRoom(markers, group.col, variant.row)
+    .filter((m) => !doorSide || splitTag(m.l).tag.includes(doorSide)).length;
   const clearRoom = () => {
+    if (!confirmClear) { setConfirmClear(true); return; }
     const tiles = [];
     for (let tz = 0; tz < ROOM; tz++) for (let tx = 0; tx < ROOM; tx++) tiles.push({ tx, tz });
     apply(tiles, "erase");
+    setConfirmClear(false);
   };
 
   const marked = markersInRoom(markers, group.col, variant.row).length;
@@ -594,9 +606,13 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, mark
                 <p className="note">Only if the game shows this room is different here, like an extra wall.</p>
               </>
             ))}
-            <button type="button" className="ghost danger" onClick={clearRoom}>
-              {rooms.length > 1 ? "Clear marks in this room and its copies" : "Clear marks in this room"}
-            </button>
+            {clearable > 0 && (
+              <button type="button" className={confirmClear ? "danger-solid" : "ghost danger"} onClick={clearRoom}>
+                {confirmClear
+                  ? `Click again to remove ${clearable} ${clearable === 1 ? "mark" : "marks"}`
+                  : doorSide ? "Clear this door's marks" : "Clear this room"}
+              </button>
+            )}
           </div>
         </aside>
       </div>

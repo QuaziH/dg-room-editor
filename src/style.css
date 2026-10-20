@@ -203,3 +203,4 @@ textarea { font: 12px/1.4 var(--mono); resize: vertical; word-break: break-all; 
 .doorway-E, .doorway-W { top: 50%; height: 12.5%; width: 18px; translate: 0 -50%; }
 .doorway-N { top: -16px; } .doorway-S { bottom: -16px; }
 .doorway-W { left: -16px; } .doorway-E { right: -16px; }
+button.danger-solid { background: var(--err); color: #fff; border: 1px solid transparent; border-radius: 8px; padding: 8px 12px; font-weight: 700; }
