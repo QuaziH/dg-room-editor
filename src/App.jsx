@@ -538,10 +538,10 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
   return (
     <div className="editor">
       <header className="editor-head">
-        <button type="button" className="ghost back" onClick={onClose}>← {theme.name}</button>
-        <div className="editor-title">
-          <h2>{group.name}{isSeparate && <span className="tag">Separate</span>}</h2>
-        </div>
+        <button type="button" className="back" onClick={onClose}>
+          <span aria-hidden="true">‹</span> {theme.name} rooms
+        </button>
+        <h2 className="editor-title">{group.name}{isSeparate && <span className="tag">Separate</span>}</h2>
       </header>
 
       <div className="editor-body">

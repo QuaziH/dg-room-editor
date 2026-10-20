@@ -85,8 +85,14 @@ button.ghost { background: none; }
 button.ghost.danger { color: var(--err); border-color: color-mix(in srgb, var(--err) 40%, transparent); }
 
 /* Editor */
-.editor-head { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; margin-bottom: 16px; }
-.editor-title h2 { font: 700 26px/1.15 var(--display); margin: 0; }
+.editor-head { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 18px; }
+button.back {
+  display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; border: 0; background: none;
+  font: 600 13px/1.2 var(--body); color: var(--muted);
+}
+button.back span { font-size: 18px; line-height: 1; }
+button.back:hover { color: var(--accent); }
+.editor-title { display: flex; align-items: center; font: 700 28px/1.15 var(--body); letter-spacing: -0.01em; margin: 0; }
 .editor-body { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
 @media (max-width: 860px) { .editor-body { grid-template-columns: minmax(0, 1fr); } }
 .board-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
