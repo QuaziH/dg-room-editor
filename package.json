@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "node tools/build.mjs",
-    "test": "node tools/test-copies.mjs",
+    "test": "node tools/test-copies.mjs && node tools/test-marks.mjs",
     "test:codec": "node tools/test-codec.mjs"
   },
   "devDependencies": {

@@ -1,8 +1,8 @@
 import { encode, decode, derivedFill } from "./codec.js";
 import {
   ROOM, tileKey, roomOrigin, isBlocked, findGroup, markersInRoom, indexRooms, copiesOf,
-  separateKey, turnTile, turnSides,
-  countGroupMarkers, rotateCCW, straightPath, diveTargets,
+  separateKey, turnTile, turnSides, splitTag, joinTag, toMarker, markAfter, roomsByPos,
+  countMarks, countGroupMarks, rotateCCW, straightPath, diveTargets,
 } from "./rooms.js";
 
 const { useState, useEffect, useMemo, useCallback, useRef } = React;
@@ -53,17 +53,6 @@ const DOORWAYS = [
   { side: "S", arrow: "↑" },
   { side: "W", arrow: "→" },
 ];
-// Door tags: "[W] dive" only shows in game when the room was entered through
-// the template's west door (Tile Markers (doors) build).
-function splitTag(label) {
-  const m = /^\[([NESW]+)\]\s*(.*)$/.exec(label || "");
-  return m ? { tag: m[1], text: m[2] } : { tag: "", text: label || "" };
-}
-const joinTag = (tag, text) => {
-  const sorted = [..."NESW"].filter((c) => tag.includes(c)).join("");
-  return sorted ? `[${sorted}]${text ? " " + text : ""}` : text;
-};
-const toMarker = (c, l) => (l ? { c, l } : { c });
 
 const css = (rgba) => {
   const r = (rgba >>> 24) & 255, g = (rgba >>> 16) & 255, b = (rgba >>> 8) & 255;
@@ -112,7 +101,7 @@ function RoomCard({ theme, group, count, onOpen }) {
       <span className="card-name">{group.name}</span>
       <span className="card-meta">
         {group.variants.length} door {group.variants.length === 1 ? "variant" : "variants"}
-        {count > 0 && <span className="pill">{count} marked</span>}
+        {count > 0 && <span className="pill">{count} {count === 1 ? "mark" : "marks"}</span>}
       </span>
     </button>
   );
@@ -126,9 +115,9 @@ function Board({ theme, group, variant, rotation, markers, overlay, onTile, onTi
       const tz = ROOM - 1 - sy;
       const raw = markers[tileKey(ox + tx, oz + tz)];
       const parts = raw && splitTag(raw.l);
-      // With a door picked, show what the plugin would show for that door.
-      const hidden = raw && doorSide && parts.tag && !parts.tag.includes(doorSide);
-      const m = raw && !hidden ? { c: raw.c, l: doorSide ? parts.text : raw.l } : null;
+      // With a door picked, marks for other doors fade: the tile is taken.
+      const other = raw && doorSide && parts.tag && !parts.tag.includes(doorSide);
+      const m = raw && { c: raw.c, l: other ? "" : doorSide ? parts.text : raw.l };
       const key = `${tx},${tz}`;
       const cls = ["tile"];
       if (overlay.path.has(key)) cls.push("t-path");
@@ -141,11 +130,13 @@ function Board({ theme, group, variant, rotation, markers, overlay, onTile, onTi
           key={key}
           type="button"
           className={cls.join(" ")}
-          aria-label={`Tile ${tx}, ${tz}${m ? `, marked${m.l ? ` "${m.l}"` : ""}` : ""}`}
+          aria-label={`Tile ${tx}, ${tz}${other ? ", marked for another door" : m ? `, marked${m.l ? ` "${m.l}"` : ""}` : ""}`}
+          title={other ? "Marked for another door" : undefined}
           onClick={() => onTile(tx, tz)}
           onContextMenu={(e) => { e.preventDefault(); onTileErase(tx, tz); }}
           style={m ? { "--mk": css(m.c) } : undefined}
           data-marked={m ? "" : undefined}
+          data-other={other ? "" : undefined}
         >
           {m && m.l && <span className="tile-label" style={{ transform: `rotate(${-rotation * 90}deg)` }}>{m.l}</span>}
         </button>
@@ -183,7 +174,7 @@ function Icon({ name }) {
   );
 }
 
-function ExportPanel({ markers, onImport, onClose }) {
+function ExportPanel({ markers, total, onImport, onClose }) {
   const [name, setName] = useState("DG markers");
   const [importText, setImportText] = useState("");
   const [message, setMessage] = useState(null);
@@ -242,7 +233,7 @@ function ExportPanel({ markers, onImport, onClose }) {
                 <Icon name={copied ? "check" : "copy"} />
               </button>
             </div>
-            <p className="note">All {tiles.length} marks. In game: Tile Markers → Presets → Import, and paste.</p>
+            <p className="note">All {total} {total === 1 ? "mark" : "marks"}. In game: Tile Markers → Presets → Import, and paste.</p>
           </section>
           <section className="stack">
             <h3>Import</h3>
@@ -286,7 +277,11 @@ function CopyGrid({ data, byPos, group, current, copies, onPick }) {
     <div className="copy-grid" style={{ "--cols": columns }}>
       <span />
       {Array.from({ length: columns }, (_, v) => (
-        <span key={v} className="copy-col">{doorShape(group.variants[v] && group.variants[v].doors)}</span>
+        // A column is named only when every theme has the same doors there.
+        <span key={v} className="copy-col">
+          {new Set(rows.map((r) => r.variants[v] && r.variants[v].doors)).size === 1 && group.variants[v]
+            ? doorShape(group.variants[v].doors) : ""}
+        </span>
       ))}
       {rows.map(({ theme, t, variants }) => (
         <div key={t} className={`copy-row theme-${theme.id}`}>
@@ -309,7 +304,7 @@ function CopyGrid({ data, byPos, group, current, copies, onPick }) {
   );
 }
 
-function Editor({ data, families, separate, setSeparate, themeIndex, group, initialVariant, markers, setMarkers, onJump, onClose }) {
+function Editor({ data, families, byPos, separate, setSeparate, themeIndex, group, initialVariant, markers, setMarkers, onJump, onClose }) {
   const theme = data.themes[themeIndex];
   const [variantIndex, setVariantIndex] = useState(() => {
     if (initialVariant != null) return initialVariant;
@@ -363,11 +358,8 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
     [families, separate, themeIndex, group.id, variant]);
   const isSeparate = separate.includes(separateKey(themeIndex, group.id));
   const familySize = families.get(variant.family).length;
-  const byPos = useMemo(
-    () => new Map([...families.values()].flat().map((r) => [`${r.col}:${r.row}`, r])), [families]);
 
-  // mode: "set", "erase" or "toggle". Tiles carry { tx, tz, c, text }; the
-  // current door (if any) is added to or removed from the marker's door tag.
+  // Applies a click to these tiles ({ tx, tz, c, text }) in every copy; see markAfter.
   const apply = useCallback((tiles, mode) => {
     setMarkers((prev) => {
       const next = { ...prev };
@@ -378,22 +370,9 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
         for (const t of tiles) {
           const [tx, tz] = turnTile(t.tx, t.tz, room.delta);
           const k = tileKey(x + tx, z + tz);
-          const e = next[k];
-          const ep = e && splitTag(e.l);
-          const same = e && e.c === t.c && ep.text === (t.text || "");
-          const removeDoor = () => {
-            if (!side || !ep.tag) { delete next[k]; return; }
-            const tag = ep.tag.replace(side, "");
-            if (tag) next[k] = toMarker(e.c, joinTag(tag, ep.text));
-            else delete next[k];
-          };
-          if (mode === "erase") { if (e) removeDoor(); continue; }
-          if (mode === "toggle" && same && (!side || ep.tag.includes(side) || !ep.tag)) {
-            removeDoor();
-            continue;
-          }
-          const tag = side ? (same && ep.tag ? ep.tag + side : side) : "";
-          next[k] = toMarker(t.c, joinTag(tag, t.text || ""));
+          const marker = markAfter(next[k], t, side, mode);
+          if (marker) next[k] = marker;
+          else delete next[k];
         }
       }
       return next;
@@ -403,8 +382,10 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
   const onTile = (tx, tz) => {
     if (tool === "mark") {
       // Clicking a tile that already has this exact marker removes it.
+      const { x, z } = roomOrigin(group.col, variant.row);
+      const placed = markAfter(markers[tileKey(x + tx, z + tz)], { c: colour, text: label.trim() }, doorSide, "toggle");
       apply([{ tx, tz, c: colour, text: label.trim() }], "toggle");
-      if (!SWATCHES.some((s) => s.rgba === colour)) {
+      if (placed && placed.c === colour && !SWATCHES.some((s) => s.rgba === colour)) {
         setRecent((prev) => [colour, ...prev.filter((c) => c !== colour)].slice(0, MAX_RECENT));
       }
       return;
@@ -569,7 +550,7 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
                   <input id={`range-${tool}`} type="number" min={1} max={20} value={ranges[tool]}
                     onChange={(e) => setRanges((r) => ({ ...r, [tool]: Math.max(1, Math.min(20, Number(e.target.value) || 1)) }))} />
                 </label>
-                <label className="check">
+                <label className="check" title="Uses blocked tiles from the map. Thin walls drawn as lines aren't known.">
                   <input id="stop-blocked" type="checkbox" checked={stopAtBlocked} onChange={(e) => setStopAtBlocked(e.target.checked)} />
                   <span>Stop at blocked tiles</span>
                 </label>
@@ -602,15 +583,20 @@ export default function App() {
   const toggleSection = (id) =>
     setCollapsed((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   const families = useMemo(() => data && indexRooms(data), [data]);
+  const byPos = useMemo(() => families && roomsByPos(families), [families]);
   const [showExport, setShowExport] = useState(false);
   const [query, setQuery] = useState("");
   const scrollRef = useRef(0);
 
   useEffect(() => {
+    if (data && !data.themes[themeIndex]) setThemeIndex(0);
+  }, [data, themeIndex]);
+  const closeExport = useCallback(() => setShowExport(false), []);
+  useEffect(() => {
     fetch("rooms.json").then((r) => r.json()).then(setData, () => setError("The room list didn't load. Refresh the page to try again."));
   }, []);
 
-  const total = Object.keys(markers).length;
+  const total = byPos ? countMarks(Object.keys(markers), byPos, separate) : 0;
 
   // Returns how many tiles were loaded; DG templates are all on level 0.
   const importTiles = (tiles) => {
@@ -628,7 +614,7 @@ export default function App() {
   if (error) return <main className="shell"><p className="note err">{error}</p></main>;
   if (!data) return <main className="shell"><p className="note">Loading rooms…</p></main>;
 
-  if (!data.themes[themeIndex]) { setThemeIndex(0); return null; }
+  if (!data.themes[themeIndex]) return null;
   const theme = data.themes[themeIndex];
   const openGroup = open && findGroup(theme, open.sectionId, open.groupId);
   const q = query.trim().toLowerCase();
@@ -647,7 +633,7 @@ export default function App() {
 
       <main className="shell">
         {openGroup ? (
-          <Editor key={`${themeIndex}-${open.groupId}`} data={data} families={families}
+          <Editor key={`${themeIndex}-${open.groupId}`} data={data} families={families} byPos={byPos}
             separate={separate} setSeparate={setSeparate} themeIndex={themeIndex}
             group={openGroup} initialVariant={open.variant} markers={markers} setMarkers={setMarkers}
             onJump={(r) => { setThemeIndex(r.t); setOpen({ sectionId: r.sectionId, groupId: r.groupId, variant: r.v }); }}
@@ -673,7 +659,7 @@ export default function App() {
                   {(q || !collapsed.includes(section.id)) && (
                     <div className="cards">
                       {groups.map((g) => (
-                        <RoomCard key={g.id} theme={theme} group={g} count={countGroupMarkers(markers, g)}
+                        <RoomCard key={g.id} theme={theme} group={g} count={countGroupMarks(markers, g, byPos, separate)}
                           onOpen={() => { scrollRef.current = window.scrollY; setOpen({ sectionId: section.id, groupId: g.id }); window.scrollTo(0, 0); }} />
                       ))}
                     </div>
@@ -691,7 +677,7 @@ export default function App() {
       </footer>
 
       {showExport && (
-        <ExportPanel markers={markers} onImport={importTiles} onClose={() => setShowExport(false)} />
+        <ExportPanel markers={markers} total={total} onImport={importTiles} onClose={closeExport} />
       )}
     </div>
   );
