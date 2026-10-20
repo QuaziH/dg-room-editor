@@ -1,6 +1,7 @@
 import { encode, decode, derivedFill } from "./codec.js";
 import {
-  ROOM, tileKey, roomOrigin, isBlocked, targetRooms, findGroup, markersInRoom,
+  ROOM, tileKey, roomOrigin, isBlocked, findGroup, markersInRoom, indexRooms, copiesOf,
+  separateKey, turnTile, turnSides,
   countGroupMarkers, rotateCCW, straightPath, diveTargets,
 } from "./rooms.js";
 
@@ -23,8 +24,9 @@ const ABILITIES = {
 };
 const DEFAULT_RANGES = Object.fromEntries(
   Object.entries(ABILITIES).map(([id, a]) => [id, a.defaultRange]));
-// The one puzzle column whose puzzle differs per theme, so marks there stay in one theme.
-const THEME_PUZZLE_COL = 11;
+const SEPARATE_KEY = "dg-room-separate";
+// Copies known to differ in game in ways the map can't show.
+const KNOWN_SEPARATE = ["4:p15"]; // Warped Lodestones: an extra wall
 // Screen-relative facing: the arrow points the way your character faces on screen.
 const FACINGS = [
   { id: "up-left", label: "↖", vec: [-1, 1] },
@@ -70,6 +72,19 @@ function loadMarkers() {
   } catch {
     return {};
   }
+}
+
+function loadSeparate() {
+  try {
+    const raw = localStorage.getItem(SEPARATE_KEY);
+    return new Set(raw ? JSON.parse(raw) : KNOWN_SEPARATE);
+  } catch {
+    return new Set(KNOWN_SEPARATE);
+  }
+}
+
+function saveSeparate(separate) {
+  try { localStorage.setItem(SEPARATE_KEY, JSON.stringify([...separate])); } catch { /* storage off */ }
 }
 
 // The last theme tab picked, or Frozen.
@@ -274,7 +289,7 @@ function ExportPanel({ data, markers, themeIndex, group, sectionId, onImport, on
   );
 }
 
-function Editor({ data, themeIndex, sectionId, group, markers, setMarkers, onClose }) {
+function Editor({ data, families, separate, setSeparate, themeIndex, group, markers, setMarkers, onClose }) {
   const theme = data.themes[themeIndex];
   const [variantIndex, setVariantIndex] = useState(() => {
     const i = group.variants.findIndex((v) => markersInRoom(markers, group.col, v.row).length > 0);
@@ -284,8 +299,6 @@ function Editor({ data, themeIndex, sectionId, group, markers, setMarkers, onClo
   const [tool, setTool] = useState("mark");
   const [colour, setColour] = useState(SWATCHES[0].rgba);
   const [label, setLabel] = useState("");
-  const [allVariants, setAllVariants] = useState(true);
-  const [allThemes, setAllThemes] = useState(sectionId !== "puzzle" || group.col !== THEME_PUZZLE_COL);
   const [facing, setFacing] = useState("up");
   const [ranges, setRanges] = useState(DEFAULT_RANGES);
   const [stopAtBlocked, setStopAtBlocked] = useState(true);
@@ -318,8 +331,10 @@ function Editor({ data, themeIndex, sectionId, group, markers, setMarkers, onClo
   }), [start, result]);
 
   const rooms = useMemo(
-    () => targetRooms(data, themeIndex, sectionId, group.id, variantIndex, allVariants, allThemes),
-    [data, themeIndex, sectionId, group.id, variantIndex, allVariants, allThemes]);
+    () => copiesOf(families, separate, themeIndex, group.id, variant),
+    [families, separate, themeIndex, group.id, variant]);
+  const isSeparate = separate.has(separateKey(themeIndex, group.id));
+  const familySize = families.get(variant.family).length;
 
   // mode: "set", "erase" or "toggle". Tiles carry { tx, tz, c, text }; the
   // current door (if any) is added to or removed from the marker's door tag.
@@ -328,23 +343,26 @@ function Editor({ data, themeIndex, sectionId, group, markers, setMarkers, onClo
       const next = { ...prev };
       for (const room of rooms) {
         const { x, z } = roomOrigin(room.col, room.row);
+        // This room's door, turned to fit the copy.
+        const side = doorSide && turnSides(doorSide, room.delta);
         for (const t of tiles) {
-          const k = tileKey(x + t.tx, z + t.tz);
+          const [tx, tz] = turnTile(t.tx, t.tz, room.delta);
+          const k = tileKey(x + tx, z + tz);
           const e = next[k];
           const ep = e && splitTag(e.l);
           const same = e && e.c === t.c && ep.text === (t.text || "");
           const removeDoor = () => {
-            if (!doorSide || !ep.tag) { delete next[k]; return; }
-            const tag = ep.tag.replace(doorSide, "");
+            if (!side || !ep.tag) { delete next[k]; return; }
+            const tag = ep.tag.replace(side, "");
             if (tag) next[k] = toMarker(e.c, joinTag(tag, ep.text));
             else delete next[k];
           };
           if (mode === "erase") { if (e) removeDoor(); continue; }
-          if (mode === "toggle" && same && (!doorSide || ep.tag.includes(doorSide) || !ep.tag)) {
+          if (mode === "toggle" && same && (!side || ep.tag.includes(side) || !ep.tag)) {
             removeDoor();
             continue;
           }
-          const tag = doorSide ? (same && ep.tag ? ep.tag + doorSide : doorSide) : "";
+          const tag = side ? (same && ep.tag ? ep.tag + side : side) : "";
           next[k] = toMarker(t.c, joinTag(tag, t.text || ""));
         }
       }
@@ -382,17 +400,28 @@ function Editor({ data, themeIndex, sectionId, group, markers, setMarkers, onClo
   };
 
   const marked = markersInRoom(markers, group.col, variant.row).length;
-  const spreadMarks = () => {
-    // Copies markers exactly as they are, door tags included.
+  const separateName = `${theme.name} ${group.name}`;
+  const makeSeparate = () => setSeparate((prev) => new Set(prev).add(separateKey(themeIndex, group.id)));
+  // Rejoins the other copies, taking their marks in place of this copy's own.
+  const linkAgain = () => {
+    const key = separateKey(themeIndex, group.id);
+    const source = families.get(variant.family).find((r) => !separate.has(separateKey(r.t, r.groupId)));
     setMarkers((prev) => {
       const next = { ...prev };
-      const source = markersInRoom(prev, group.col, variant.row);
       for (const room of rooms) {
         const { x, z } = roomOrigin(room.col, room.row);
-        for (const m of source) next[tileKey(x + m.tx, z + m.tz)] = toMarker(m.c, m.l);
+        for (const m of markersInRoom(prev, room.col, room.row)) delete next[tileKey(x + m.tx, z + m.tz)];
+        if (!source) continue;
+        const delta = (room.turn - source.turn + 4) % 4;
+        for (const m of markersInRoom(prev, source.col, source.row)) {
+          const [tx, tz] = turnTile(m.tx, m.tz, delta);
+          const { tag, text } = splitTag(m.l);
+          next[tileKey(x + tx, z + tz)] = toMarker(m.c, joinTag(turnSides(tag, delta), text));
+        }
       }
       return next;
     });
+    setSeparate((prev) => { const next = new Set(prev); next.delete(key); return next; });
   };
 
   return (
@@ -400,7 +429,7 @@ function Editor({ data, themeIndex, sectionId, group, markers, setMarkers, onClo
       <header className="editor-head">
         <button type="button" className="ghost back" onClick={onClose}>← {theme.name}</button>
         <div className="editor-title">
-          <h2>{group.name}</h2>
+          <h2>{group.name}{isSeparate && <span className="pill">Separate copy</span>}</h2>
           <span className="coords">template col {group.col} · row {variant.row} · {marked} marked</span>
         </div>
       </header>
@@ -505,20 +534,26 @@ function Editor({ data, themeIndex, sectionId, group, markers, setMarkers, onClo
           </div>
 
           <div className="panel stack">
-            <h3>Apply marks to</h3>
-            <label className="check">
-              <input id="all-variants" type="checkbox" checked={allVariants} onChange={(e) => setAllVariants(e.target.checked)} />
-              <span>Every door variant of this room</span>
-            </label>
-            <label className="check">
-              <input id="all-themes" type="checkbox" checked={allThemes} onChange={(e) => setAllThemes(e.target.checked)} />
-              <span>Every theme</span>
-            </label>
-            <p className="note">Marks go to {rooms.length} template {rooms.length === 1 ? "room" : "rooms"}.</p>
-            <button type="button" disabled={marked === 0 || rooms.length < 2} onClick={spreadMarks}>
-              Copy this room's {marked} marks to them
+            <h3>Copies of this room</h3>
+            <p className="note">
+              {rooms.length <= 1 ? "No other room matches this one, so marks stay here."
+                : isSeparate ? `Your marks also go to ${rooms.length - 1} matching door ${rooms.length === 2 ? "variant" : "variants"} of ${separateName}.`
+                : `Your marks also go to ${rooms.length - 1} matching ${rooms.length === 2 ? "room" : "rooms"} in other themes and door variants, turned to fit.`}
+            </p>
+            {familySize > 1 && (isSeparate ? (
+              <>
+                <p className="note">{separateName} is kept separate: marks here don't change the other copies, and theirs don't change it.</p>
+                <button type="button" onClick={linkAgain}>Link again (takes the other copies' marks)</button>
+              </>
+            ) : (
+              <>
+                <button type="button" onClick={makeSeparate}>Make {separateName} separate</button>
+                <p className="note">Only if the game shows this room is different here, like an extra wall.</p>
+              </>
+            ))}
+            <button type="button" className="ghost danger" onClick={clearRoom}>
+              {rooms.length > 1 ? "Clear marks in this room and its copies" : "Clear marks in this room"}
             </button>
-            <button type="button" className="ghost danger" onClick={clearRoom}>Clear these rooms</button>
           </div>
         </aside>
       </div>
@@ -532,6 +567,8 @@ export default function App() {
   const [themeIndex, setThemeIndex] = useState(loadTheme);
   const [open, setOpen] = useState(null); // { sectionId, groupId }
   const [markers, setMarkers] = useState(loadMarkers);
+  const [separate, setSeparate] = useState(loadSeparate);
+  const families = useMemo(() => data && indexRooms(data), [data]);
   const [showExport, setShowExport] = useState(false);
   const [query, setQuery] = useState("");
   const scrollRef = useRef(0);
@@ -540,6 +577,7 @@ export default function App() {
     fetch("rooms.json").then((r) => r.json()).then(setData, () => setError("The room list didn't load. Refresh the page to try again."));
   }, []);
   useEffect(() => { saveMarkers(markers); }, [markers]);
+  useEffect(() => { saveSeparate(separate); }, [separate]);
 
   const total = Object.keys(markers).length;
 
@@ -587,7 +625,8 @@ export default function App() {
 
       <main className="shell">
         {openGroup ? (
-          <Editor key={`${themeIndex}-${open.groupId}`} data={data} themeIndex={themeIndex} sectionId={open.sectionId}
+          <Editor key={`${themeIndex}-${open.groupId}`} data={data} families={families}
+            separate={separate} setSeparate={setSeparate} themeIndex={themeIndex}
             group={openGroup} markers={markers} setMarkers={setMarkers}
             onClose={() => { setOpen(null); requestAnimationFrame(() => window.scrollTo(0, scrollRef.current)); }} />
         ) : (

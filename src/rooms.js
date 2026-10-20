@@ -15,23 +15,46 @@ export function isBlocked(variant, tx, tz) {
   return ((bits >> tx) & 1) === 1;
 }
 
-// Every template room a mark should go to, given the copy options.
-export function targetRooms(data, themeIndex, sectionId, groupId, variantIndex, allVariants, allThemes) {
-  const rooms = [];
-  const themes = allThemes ? data.themes.map((_, i) => i) : [themeIndex];
-  for (const t of themes) {
-    const group = findGroup(data.themes[t], sectionId, groupId);
-    if (!group) continue;
-    if (allVariants) {
-      for (const v of group.variants) rooms.push({ col: group.col, row: v.row });
-    } else {
-      // The same door variant in another theme sits at the same position in its block.
-      const v = group.variants[Math.min(variantIndex, group.variants.length - 1)];
-      rooms.push({ col: group.col, row: v.row });
+// Every room in the catalogue with its copy family (see tools/build-links.mjs).
+// A room is the family's first room turned clockwise `turn` times.
+export function indexRooms(data) {
+  const families = new Map();
+  data.themes.forEach((theme, t) => {
+    for (const section of theme.sections) {
+      for (const group of section.groups) {
+        group.variants.forEach((variant, v) => {
+          const room = { t, groupId: group.id, v, col: group.col, row: variant.row, turn: variant.turn };
+          if (!families.has(variant.family)) families.set(variant.family, []);
+          families.get(variant.family).push(room);
+        });
+      }
     }
-  }
-  return rooms;
+  });
+  return families;
 }
+
+// Marks in one theme's copy of a room can be kept apart from the other copies.
+export const separateKey = (themeIndex, groupId) => `${themeIndex}:${groupId}`;
+
+// The rooms that share marks with this one: the copies in its family that are
+// on the same side of a separation, each with the turn from this room to it.
+export function copiesOf(families, separate, themeIndex, groupId, variant) {
+  const own = separate.has(separateKey(themeIndex, groupId)) ? separateKey(themeIndex, groupId) : null;
+  return families.get(variant.family)
+    .filter((room) => {
+      const key = separateKey(room.t, room.groupId);
+      return own ? key === own : !separate.has(key);
+    })
+    .map((room) => ({ ...room, delta: (room.turn - variant.turn + 4) % 4 }));
+}
+
+// Tile and door side after turning the room clockwise k times.
+export function turnTile(tx, tz, k) {
+  for (let i = 0; i < k; i++) [tx, tz] = [tz, ROOM - 1 - tx];
+  return [tx, tz];
+}
+
+export const turnSides = (sides, k) => [...sides].map((s) => "NESW"["NESW".indexOf(s) + k & 3]).join("");
 
 export function findGroup(theme, sectionId, groupId) {
   const section = theme.sections.find((s) => s.id === sectionId);
