@@ -515,7 +515,6 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
         <button type="button" className="ghost back" onClick={onClose}>← {theme.name}</button>
         <div className="editor-title">
           <h2>{group.name}{isSeparate && <span className="tag">Separate</span>}</h2>
-          <span className="coords">template col {group.col} · row {variant.row} · {marked} marked</span>
         </div>
       </header>
 
