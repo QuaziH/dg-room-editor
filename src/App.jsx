@@ -120,7 +120,6 @@ function Board({ theme, group, variant, rotation, markers, overlay, arrows, onAr
       const key = `${tx},${tz}`;
       const cls = ["tile"];
       if (overlay.path.has(key)) cls.push("t-path");
-      if (overlay.reach.has(key)) cls.push("t-reach");
       if (overlay.end === key) cls.push("t-end");
       if (overlay.start === key) cls.push("t-start");
       cells.push(
@@ -147,6 +146,13 @@ function Board({ theme, group, variant, rotation, markers, overlay, arrows, onAr
       <div className="board" style={{ transform: `rotate(${rotation * 90}deg)` }}>
         <Sprite theme={theme} sprite={variant.sprite} className="board-img" />
         <div className="grid" onMouseLeave={() => onTileHover(null)}>{cells}</div>
+        {overlay.range && (
+          <div className="dive-range" aria-hidden="true" style={{
+            left: `${(overlay.range.x0 / ROOM) * 100}%`, top: `${((ROOM - 1 - overlay.range.z1) / ROOM) * 100}%`,
+            width: `${((overlay.range.x1 - overlay.range.x0 + 1) / ROOM) * 100}%`,
+            height: `${((overlay.range.z1 - overlay.range.z0 + 1) / ROOM) * 100}%`,
+          }} />
+        )}
         {arrows.map((a) => (
           <button key={a.key} type="button" className="jump-arrow" aria-label="Jump this way"
             style={{ left: `${(a.tx / ROOM) * 100}%`, top: `${((ROOM - 1 - a.tz) / ROOM) * 100}%` }}
@@ -355,11 +361,19 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
 
   const overlay = useMemo(() => {
     const hovered = (arrows.find((a) => a.key === hover) || { path: [] }).path;
+    const reach = new Set(tool === "dive" && start ? diveTargets(start, ranges.dive).map(at) : []);
+    // Dive shows its range as one outline; only the tile under the pointer lights up.
+    const clamp = (v) => Math.max(0, Math.min(ROOM - 1, v));
+    const range = reach.size ? {
+      x0: clamp(start.tx - ranges.dive), x1: clamp(start.tx + ranges.dive),
+      z0: clamp(start.tz - ranges.dive), z1: clamp(start.tz + ranges.dive),
+    } : null;
     return {
       start: start ? at(start) : null,
-      end: hovered.length ? at(hovered[hovered.length - 1]) : null,
+      end: hovered.length ? at(hovered[hovered.length - 1]) : reach.has(hover) ? hover : null,
       path: new Set(hovered.map(at)),
-      reach: new Set(tool === "dive" && start ? diveTargets(start, ranges.dive).map(at) : []),
+      reach,
+      range,
     };
   }, [arrows, hover, start, tool, ranges]);
 
