@@ -320,7 +320,7 @@ function ExportPanel({ data, markers, themeIndex, group, sectionId, onImport, on
 }
 
 // Small pictures of the rooms that share marks with this one, by theme.
-function CopyList({ data, copies, onJump }) {
+function CopyList({ data, copies, current, onJump }) {
   const byTheme = data.themes.map((theme, t) => ({ theme, t, rooms: copies.filter((r) => r.t === t) }))
     .filter((g) => g.rooms.length);
   return (
@@ -331,7 +331,8 @@ function CopyList({ data, copies, onJump }) {
           <div className="copy-thumbs">
             {rooms.map((r) => (
               <button key={`${r.col}:${r.row}`} type="button" className="copy-thumb" onClick={() => onJump(r)}
-                title={`${theme.name} ${r.groupName}, door variant ${r.v + 1}`}>
+                aria-current={r.col === current.col && r.row === current.row ? "true" : undefined}
+                title={`${theme.name} ${r.groupName}, door variant ${r.v + 1}${r.col === current.col && r.row === current.row ? " (this one)" : ""}`}>
                 <Sprite theme={theme} sprite={r.sprite} className="copy-img" />
               </button>
             ))}
@@ -624,7 +625,7 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
               {rooms.length > 1 ? `Shared with ${rooms.length - 1} ${rooms.length === 2 ? "copy" : "copies"}` : "No copies"}
             </h3>
             {rooms.length > 1 && (
-              <CopyList data={data} copies={rooms.filter((r) => r.col !== group.col || r.row !== variant.row)}
+              <CopyList data={data} copies={rooms} current={{ col: group.col, row: variant.row }}
                 onJump={(r) => (r.t === themeIndex && r.groupId === group.id ? setVariantIndex(r.v) : onJump(r))} />
             )}
             {familySize > 1 && (isSeparate ? (

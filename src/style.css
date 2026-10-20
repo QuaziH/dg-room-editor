@@ -220,4 +220,5 @@ button.link { background: none; border: 0; padding: 0; color: inherit; text-deco
 .copy-thumbs { display: flex; flex-wrap: wrap; gap: 4px; }
 .copy-thumb { position: relative; width: 36px; height: 36px; padding: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--stone-2); }
 .copy-thumb:hover { border-color: var(--accent); }
+.copy-thumb[aria-current="true"] { border: 2px solid var(--text); box-shadow: 0 0 0 2px var(--stone-1), 0 0 0 3px var(--accent); }
 .copy-img { position: absolute; inset: 0; }
