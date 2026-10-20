@@ -118,9 +118,9 @@ button.back:hover { color: var(--accent); }
   position: absolute; left: 50%; top: 50%; translate: -50% -50%; white-space: nowrap; pointer-events: none;
   font: 600 10px/1 var(--body); padding: 1px 3px; border-radius: 3px; background: rgba(0,0,0,.7); color: #fff; z-index: 1;
 }
-.rotate-bar { display: flex; gap: 10px; align-items: center; justify-content: center; }
-.rotate-bar button { font-size: 20px; line-height: 1; padding: 6px 12px; }
-.rot-readout { min-width: 150px; text-align: center; font: 13px var(--mono); color: var(--muted); }
+.board-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rotate-bar { display: flex; gap: 6px; }
+.rotate-bar button { font-size: 18px; line-height: 1; padding: 6px 10px; }
 
 .tools { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .panel { background: var(--stone-1); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
@@ -157,7 +157,6 @@ textarea { font: 12px/1.4 var(--mono); resize: vertical; word-break: break-all; 
 .check input { accent-color: var(--accent); width: 16px; height: 16px; }
 .facing { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); }
 .note { color: var(--muted); font-size: 13px; margin: 0; }
-.note.center { text-align: center; }
 .note.ok { color: var(--ok); }
 .note.err { color: var(--err); }
 
@@ -194,9 +193,11 @@ textarea { font: 12px/1.4 var(--mono); resize: vertical; word-break: break-all; 
 .doorway-N { top: -16px; } .doorway-S { bottom: -16px; }
 .doorway-W { left: -16px; } .doorway-E { right: -16px; }
 button.danger-solid { background: var(--err); color: #fff; border: 1px solid transparent; border-radius: 8px; padding: 8px 12px; font-weight: 700; }
-.door-status { margin: 0; text-align: center; font-size: 13px; color: var(--muted); }
+.door-status { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.door-status .hint { opacity: .75; }
+.chip-clear { border: 0; background: color-mix(in srgb, var(--accent) 20%, transparent); color: inherit; border-radius: 999px; width: 20px; height: 20px; padding: 0; font-size: 11px; line-height: 20px; }
+.chip-clear:hover { background: color-mix(in srgb, var(--accent) 40%, transparent); }
 .door-status.on { color: var(--accent); font-weight: 600; }
-button.link { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; font: inherit; cursor: pointer; }
 .tag {
   display: inline-block; margin-left: 10px; vertical-align: middle; padding: 3px 8px; border-radius: 6px;
   border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); color: var(--accent);

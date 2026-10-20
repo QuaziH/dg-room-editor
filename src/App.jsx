@@ -11,6 +11,7 @@ const STORAGE_KEY = "dg-room-markers-v1";
 const THEME_KEY = "dg-room-theme";
 const RECENT_KEY = "dg-room-recent-colours";
 const COLLAPSED_KEY = "dg-room-collapsed";
+const DOOR_HINT_KEY = "dg-room-door-hint-seen";
 const MAX_RECENT = 6;
 const SWATCHES = [
   { name: "Violet", rgba: 0xc864ffff },
@@ -396,6 +397,15 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
   const [start, setStart] = useState(null);
   const [diveEnd, setDiveEnd] = useState(null);
   const [doorSide, setDoorSide] = useState(null); // template side letter, or null for every door
+  // The "click an arrow" hint shows until the first door is picked.
+  const [doorHintSeen, setDoorHintSeen] = useState(() => {
+    try { return localStorage.getItem(DOOR_HINT_KEY) === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    if (!doorSide || doorHintSeen) return;
+    setDoorHintSeen(true);
+    try { localStorage.setItem(DOOR_HINT_KEY, "1"); } catch { /* storage off */ }
+  }, [doorSide, doorHintSeen]);
 
   const variant = group.variants[Math.min(variantIndex, group.variants.length - 1)];
   const isAbility = tool in ABILITIES;
@@ -551,20 +561,25 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, init
         <div className="board-col">
           <Board theme={theme} group={group} variant={variant} rotation={turns}
             markers={markers} ability={{ overlay }} onTile={onTile} onTileErase={onTileErase} doorSide={doorSide} setDoorSide={setDoorSide} />
-          <p className={doorSide ? "door-status on" : "door-status"}>
-            {doorSide ? (
-              <>
-                Marking for the glowing door only.{" "}
-                <button type="button" className="link" onClick={() => setDoorSide(null)}>Back to any door</button>
-              </>
-            ) : "Marks show from any door. Click a doorway arrow to mark for one door only."}
-          </p>
-          <div className="rotate-bar">
-            <button type="button" onClick={() => setTurns((t) => t - 1)} aria-label="Turn left">⟲</button>
-            <span className="rot-readout">{rotation === 0 ? "As in the template" : `Turned ${rotation * 90}°`}</span>
-            <button type="button" onClick={() => setTurns((t) => t + 1)} aria-label="Turn right">⟳</button>
+          <div className="board-bar">
+            <p className={doorSide ? "door-status on" : "door-status"}>
+              {doorSide ? (
+                <>
+                  Marks for: this door only
+                  <button type="button" className="chip-clear" onClick={() => setDoorSide(null)} aria-label="Back to any door">✕</button>
+                </>
+              ) : (
+                <>
+                  Marks for: any door
+                  {!doorHintSeen && <span className="hint"> (click an arrow to choose)</span>}
+                </>
+              )}
+            </p>
+            <div className="rotate-bar">
+              <button type="button" onClick={() => setTurns((t) => t - 1)} aria-label="Turn left" title="Turn left">⟲</button>
+              <button type="button" onClick={() => setTurns((t) => t + 1)} aria-label="Turn right" title="Turn right">⟳</button>
+            </div>
           </div>
-          <p className="note center">Turn the room to match what you see in game. Saved markers aren't affected, and they show in every rotation.</p>
         </div>
 
         <aside className="tools">
