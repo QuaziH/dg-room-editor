@@ -106,7 +106,7 @@ function RoomCard({ theme, group, count, onOpen }) {
   );
 }
 
-function Board({ theme, group, variant, rotation, markers, overlay, onTile, onTileHover, onTileErase, doorSide, setDoorSide }) {
+function Board({ theme, group, variant, rotation, markers, overlay, arrows, onArrow, onTile, onTileHover, onTileErase, doorSide, setDoorSide }) {
   const { x: ox, z: oz } = roomOrigin(group.col, variant.row);
   const cells = [];
   for (let sy = 0; sy < ROOM; sy++) {
@@ -121,7 +121,6 @@ function Board({ theme, group, variant, rotation, markers, overlay, onTile, onTi
       const cls = ["tile"];
       if (overlay.path.has(key)) cls.push("t-path");
       if (overlay.reach.has(key)) cls.push("t-reach");
-      if (overlay.land.has(key)) cls.push("t-land");
       if (overlay.end === key) cls.push("t-end");
       if (overlay.start === key) cls.push("t-start");
       cells.push(
@@ -148,6 +147,15 @@ function Board({ theme, group, variant, rotation, markers, overlay, onTile, onTi
       <div className="board" style={{ transform: `rotate(${rotation * 90}deg)` }}>
         <Sprite theme={theme} sprite={variant.sprite} className="board-img" />
         <div className="grid" onMouseLeave={() => onTileHover(null)}>{cells}</div>
+        {arrows.map((a) => (
+          <button key={a.key} type="button" className="jump-arrow" aria-label="Jump this way"
+            style={{ left: `${(a.tx / ROOM) * 100}%`, top: `${((ROOM - 1 - a.tz) / ROOM) * 100}%` }}
+            onMouseEnter={() => onTileHover(a.key)} onFocus={() => onTileHover(a.key)} onClick={() => onArrow(a)}>
+            <svg viewBox="0 0 24 24" aria-hidden="true" style={{ transform: `rotate(${a.angle}deg)` }}>
+              <path d="M6 15l6-6 6 6" />
+            </svg>
+          </button>
+        ))}
         {DOORWAYS.filter((d) => !variant.doors || variant.doors.includes(d.side)).map((d) => (
           <button key={d.side} type="button" className={`doorway doorway-${d.side}`}
             aria-pressed={doorSide === d.side} data-dimmed={doorSide && doorSide !== d.side ? "" : undefined}
@@ -332,24 +340,28 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
     if (doorSide && variant.doors && !variant.doors.includes(doorSide)) setDoorSide(null);
   }, [variant, doorSide]);
 
-  // Surge and escape land at the end of a straight line in one of eight
-  // directions; dive can land on any open tile in range.
+  // Surge and escape: an arrow on each side of the start tile; the jump goes
+  // that way to full range or the room's edge. Dive can land anywhere in range.
   const at = (p) => `${p.tx},${p.tz}`;
-  const landings = useMemo(() => {
+  const arrows = useMemo(() => {
     if (!start || tool === "dive" || !isAbility) return [];
-    return DIRECTIONS.map((dir) => straightPath(start, dir, ranges[tool])).filter((path) => path.length);
+    return DIRECTIONS.map((dir) => ({ dir, path: straightPath(start, dir, ranges[tool]) }))
+      .filter((a) => a.path.length)
+      .map((a) => ({
+        ...a, tx: a.path[0].tx, tz: a.path[0].tz, key: at(a.path[0]),
+        angle: (Math.atan2(a.dir[0], a.dir[1]) * 180) / Math.PI,
+      }));
   }, [start, tool, isAbility, ranges]);
 
   const overlay = useMemo(() => {
-    const hovered = landings.find((path) => at(path[path.length - 1]) === hover) || [];
+    const hovered = (arrows.find((a) => a.key === hover) || { path: [] }).path;
     return {
       start: start ? at(start) : null,
-      end: hovered.length ? hover : null,
+      end: hovered.length ? at(hovered[hovered.length - 1]) : null,
       path: new Set(hovered.map(at)),
-      land: new Set(landings.map((path) => at(path[path.length - 1]))),
       reach: new Set(tool === "dive" && start ? diveTargets(start, ranges.dive).map(at) : []),
     };
-  }, [landings, hover, start, tool, ranges]);
+  }, [arrows, hover, start, tool, ranges]);
 
   const rooms = useMemo(
     () => copiesOf(families, separate, themeIndex, group.id, variant),
@@ -409,7 +421,7 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
       return;
     }
     if (start && start.tx === tx && start.tz === tz) { setStart(null); return; }
-    if (overlay.reach.has(`${tx},${tz}`) || overlay.land.has(`${tx},${tz}`)) { savePair(start, { tx, tz }); return; }
+    if (overlay.reach.has(`${tx},${tz}`)) { savePair(start, { tx, tz }); return; }
     setStart({ tx, tz });
     setHover(null);
   };
@@ -474,7 +486,8 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
       <div className="editor-body">
         <div className="board-col">
           <Board theme={theme} group={group} variant={variant} rotation={turns}
-            markers={markers} overlay={overlay} onTile={onTile} onTileHover={setHover} onTileErase={onTileErase} doorSide={doorSide} setDoorSide={setDoorSide} />
+            markers={markers} overlay={overlay} arrows={arrows}
+            onArrow={(a) => savePair(start, a.path[a.path.length - 1])} onTile={onTile} onTileHover={setHover} onTileErase={onTileErase} doorSide={doorSide} setDoorSide={setDoorSide} />
           <div className="rotate-bar">
             <button type="button" onClick={() => setTurns((t) => t - 1)} aria-label="Turn left" title="Turn left">⟲</button>
             <button type="button" onClick={() => setTurns((t) => t + 1)} aria-label="Turn right" title="Turn right">⟳</button>
@@ -552,7 +565,7 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
                     onChange={(e) => setRanges((r) => ({ ...r, [tool]: Math.max(1, Math.min(20, Number(e.target.value) || 1)) }))} />
                 </label>
                 <p className="note">
-                  {start ? "Click where to land." : "Click where you start."}
+                  {!start ? "Click where you start." : tool === "dive" ? "Click where to land." : "Click a direction."}
                 </p>
               </div>
             )}

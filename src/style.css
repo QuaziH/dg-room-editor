@@ -239,9 +239,13 @@ button.danger-solid { background: var(--err); color: #fff; border: 1px solid tra
 .input-group button:hover:not(:disabled) { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--stone-2)); }
 .input-group button:disabled { opacity: .45; cursor: default; }
 .input-group .group-action:not(:disabled) { color: var(--accent); }
-/* Where a surge or escape can land: a small dot; hovering shows the path. */
-.tile.t-land::after {
-  content: ""; position: absolute; inset: 32%; border-radius: 50%;
-  border: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 25%, transparent);
+/* Direction arrows around a surge or escape start tile. */
+.jump-arrow {
+  position: absolute; z-index: 3; width: calc(100% / 16); height: calc(100% / 16); padding: 0;
+  display: grid; place-items: center; border: 0; background: none; color: var(--accent);
 }
-.tile.t-land:hover::after { background: var(--accent); }
+.jump-arrow svg {
+  width: 90%; height: 90%; fill: none; stroke: currentColor; stroke-width: 3.5;
+  stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 2px rgba(0, 0, 0, .9));
+}
+.jump-arrow:hover, .jump-arrow:focus-visible { color: var(--text); }
