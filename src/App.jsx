@@ -2,7 +2,7 @@ import { encode, decode, derivedFill } from "./codec.js";
 import {
   ROOM, tileKey, roomOrigin, isBlocked, findGroup, markersInRoom, indexRooms, copiesOf,
   separateKey, turnTile, turnSides, splitTag, joinTag, toMarker, markAfter, roomsByPos,
-  countMarks, countGroupMarks, rotateCCW, straightPath, diveTargets,
+  countMarks, countGroupMarks, straightPath, diveTargets,
 } from "./rooms.js";
 
 const { useState, useEffect, useMemo, useCallback, useRef } = React;
@@ -17,26 +17,16 @@ const SWATCHES = [
   { name: "Bone", rgba: 0xffffffff },
 ];
 const ABILITIES = {
-  surge: { name: "Surge", hint: "Straight ahead", defaultRange: 10 },
-  escape: { name: "Escape", hint: "Straight back", defaultRange: 7 },
-  dive: { name: "Dive", hint: "Any tile in range", defaultRange: 10 },
+  surge: { name: "Surge", defaultRange: 10 },
+  escape: { name: "Escape", defaultRange: 7 },
+  dive: { name: "Dive", defaultRange: 10 },
 };
 const DEFAULT_RANGES = Object.fromEntries(
   Object.entries(ABILITIES).map(([id, a]) => [id, a.defaultRange]));
 // Copies known to differ in game in ways the map can't show.
 const KNOWN_SEPARATE = ["4:p15"]; // Warped Lodestones: an extra wall
-// Screen-relative facing: the arrow points the way your character faces on screen.
-const FACINGS = [
-  { id: "up-left", label: "↖", vec: [-1, 1] },
-  { id: "up", label: "↑", vec: [0, 1] },
-  { id: "up-right", label: "↗", vec: [1, 1] },
-  { id: "left", label: "←", vec: [-1, 0] },
-  null,
-  { id: "right", label: "→", vec: [1, 0] },
-  { id: "down-left", label: "↙", vec: [-1, -1] },
-  { id: "down", label: "↓", vec: [0, -1] },
-  { id: "down-right", label: "↘", vec: [1, -1] },
-];
+// The eight directions a surge or escape can go, as template offsets (z is north).
+const DIRECTIONS = [[0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1]];
 
 // "Corner", "Straight", ... from a variant's door sides.
 function doorShape(doors) {
@@ -116,7 +106,7 @@ function RoomCard({ theme, group, count, onOpen }) {
   );
 }
 
-function Board({ theme, group, variant, rotation, markers, overlay, onTile, onTileErase, doorSide, setDoorSide }) {
+function Board({ theme, group, variant, rotation, markers, overlay, arrows, onArrow, onArrowHover, onTile, onTileErase, doorSide, setDoorSide }) {
   const { x: ox, z: oz } = roomOrigin(group.col, variant.row);
   const cells = [];
   for (let sy = 0; sy < ROOM; sy++) {
@@ -157,6 +147,14 @@ function Board({ theme, group, variant, rotation, markers, overlay, onTile, onTi
       <div className="board" style={{ transform: `rotate(${rotation * 90}deg)` }}>
         <Sprite theme={theme} sprite={variant.sprite} className="board-img" />
         <div className="grid">{cells}</div>
+        {arrows.map((a) => (
+          <button key={a.dir.join()} type="button" className="jump-arrow" aria-label="Jump this way"
+            style={{ left: `${(a.tx / ROOM) * 100}%`, top: `${((ROOM - 1 - a.tz) / ROOM) * 100}%` }}
+            onMouseEnter={() => onArrowHover(a.dir)} onMouseLeave={() => onArrowHover(null)} onFocus={() => onArrowHover(a.dir)}
+            onClick={() => onArrow(a)}>
+            <span style={{ transform: `rotate(${Math.atan2(a.dir[0], a.dir[1]) * 180 / Math.PI}deg)` }}>↑</span>
+          </button>
+        ))}
         {DOORWAYS.filter((d) => !variant.doors || variant.doors.includes(d.side)).map((d) => (
           <button key={d.side} type="button" className={`doorway doorway-${d.side}`}
             aria-pressed={doorSide === d.side} data-dimmed={doorSide && doorSide !== d.side ? "" : undefined}
@@ -328,39 +326,39 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
   const [colour, setColour] = useState(SWATCHES[0].rgba);
   const [recent, setRecent] = useStored("dg-room-recent-colours", []);
   const [label, setLabel] = useState("");
-  const [facing, setFacing] = useState("up");
   const [ranges, setRanges] = useState(DEFAULT_RANGES);
   const [stopAtBlocked, setStopAtBlocked] = useState(true);
   const [start, setStart] = useState(null);
-  const [diveEnd, setDiveEnd] = useState(null);
+  const [hover, setHover] = useState(null); // hovered arrow direction, or dive target
   const [doorSide, setDoorSide] = useState(null); // template side letter, or null for every door
 
   const variant = group.variants[Math.min(variantIndex, group.variants.length - 1)];
   const isAbility = tool in ABILITIES;
-  const facingVec = FACINGS.find((f) => f && f.id === facing).vec;
 
-  useEffect(() => { setStart(null); setDiveEnd(null); }, [tool, variantIndex]);
+  useEffect(() => { setStart(null); setHover(null); }, [tool, variantIndex]);
   useEffect(() => {
     if (doorSide && variant.doors && !variant.doors.includes(doorSide)) setDoorSide(null);
   }, [variant, doorSide]);
 
-  const result = useMemo(() => {
-    if (!isAbility || !start) return null;
-    if (tool === "dive") {
-      return { reach: diveTargets(variant, start, ranges.dive, stopAtBlocked), path: [], end: diveEnd };
-    }
-    const dirScreen = tool === "escape" ? facingVec.map((v) => -v) : facingVec;
-    const dir = rotateCCW(dirScreen, rotation);
-    const path = straightPath(variant, start, dir, ranges[tool], stopAtBlocked);
-    return { reach: [], path, end: path.length ? path[path.length - 1] : null };
-  }, [isAbility, start, tool, variant, ranges, stopAtBlocked, facingVec, rotation, diveEnd]);
+  // Surge and escape: an arrow on each side of the start tile that leads somewhere.
+  const arrows = useMemo(() => {
+    if (!start || tool === "dive" || !isAbility) return [];
+    return DIRECTIONS.map((dir) => ({ dir, path: straightPath(variant, start, dir, ranges[tool], stopAtBlocked) }))
+      .filter((a) => a.path.length)
+      .map((a) => ({ ...a, tx: start.tx + a.dir[0], tz: start.tz + a.dir[1] }));
+  }, [start, tool, isAbility, variant, ranges, stopAtBlocked]);
 
-  const overlay = useMemo(() => ({
-    start: start ? `${start.tx},${start.tz}` : null,
-    end: result && result.end ? `${result.end.tx},${result.end.tz}` : null,
-    path: new Set(result ? result.path.map((p) => `${p.tx},${p.tz}`) : []),
-    reach: new Set(result ? result.reach.map((p) => `${p.tx},${p.tz}`) : []),
-  }), [start, result]);
+  const overlay = useMemo(() => {
+    const at = (p) => `${p.tx},${p.tz}`;
+    const path = tool === "dive" ? [] : (arrows.find((a) => hover && a.dir.join() === hover.join()) || { path: [] }).path;
+    const reach = tool === "dive" && start ? diveTargets(variant, start, ranges.dive, stopAtBlocked) : [];
+    return {
+      start: start ? at(start) : null,
+      end: path.length ? at(path[path.length - 1]) : null,
+      path: new Set(path.map(at)),
+      reach: new Set(reach.map(at)),
+    };
+  }, [tool, arrows, hover, start, variant, ranges, stopAtBlocked]);
 
   const rooms = useMemo(
     () => copiesOf(families, separate, themeIndex, group.id, variant),
@@ -380,6 +378,7 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
           const [tx, tz] = turnTile(t.tx, t.tz, room.delta);
           const k = tileKey(x + tx, z + tz);
           const marker = markAfter(next[k], t, side, mode);
+          if (marker && t.pair) marker.pair = t.pair;
           if (marker) next[k] = marker;
           else delete next[k];
         }
@@ -388,34 +387,46 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
     });
   }, [rooms, setMarkers, doorSide]);
 
+  // A saved surge, escape or dive is two linked tiles; clicking either removes both.
+  const markerAt = (tx, tz) => {
+    const { x, z } = roomOrigin(group.col, variant.row);
+    return markers[tileKey(x + tx, z + tz)];
+  };
+  const removePair = (pair) => setMarkers((prev) =>
+    Object.fromEntries(Object.entries(prev).filter(([, m]) => m.pair !== pair)));
+  const savePair = (from, to) => {
+    const name = ABILITIES[tool].name;
+    const pair = Date.now().toString(36);
+    apply([
+      { ...from, c: colour, text: `${name} from`, pair },
+      { ...to, c: colour, text: `${name} to`, pair },
+    ], "set");
+    setStart(null);
+    setHover(null);
+  };
+
   const onTile = (tx, tz) => {
+    const existing = markerAt(tx, tz);
+    if (existing && existing.pair) { removePair(existing.pair); return; }
     if (tool === "mark") {
       // Clicking a tile that already has this exact marker removes it.
-      const { x, z } = roomOrigin(group.col, variant.row);
-      const placed = markAfter(markers[tileKey(x + tx, z + tz)], { c: colour, text: label.trim() }, doorSide, "toggle");
+      const placed = markAfter(existing, { c: colour, text: label.trim() }, doorSide, "toggle");
       apply([{ tx, tz, c: colour, text: label.trim() }], "toggle");
       if (placed && placed.c === colour && !SWATCHES.some((s) => s.rgba === colour)) {
         setRecent((prev) => [colour, ...prev.filter((c) => c !== colour)].slice(0, MAX_RECENT));
       }
       return;
     }
-    if (tool === "dive" && start && overlay.reach.has(`${tx},${tz}`)) {
-      setDiveEnd({ tx, tz });
-      return;
-    }
+    if (start && start.tx === tx && start.tz === tz) { setStart(null); return; }
+    if (tool === "dive" && start && overlay.reach.has(`${tx},${tz}`)) { savePair(start, { tx, tz }); return; }
     setStart({ tx, tz });
-    setDiveEnd(null);
+    setHover(null);
   };
 
-  const onTileErase = (tx, tz) => { if (tool === "mark") apply([{ tx, tz }], "erase"); };
-
-  const saveAbility = () => {
-    if (!start || !result || !result.end) return;
-    const name = ABILITIES[tool].name;
-    apply([
-      { ...start, c: colour, text: `${name} from` },
-      { ...result.end, c: colour, text: `${name} to` },
-    ], "set");
+  const onTileErase = (tx, tz) => {
+    const existing = markerAt(tx, tz);
+    if (existing && existing.pair) removePair(existing.pair);
+    else if (tool === "mark") apply([{ tx, tz }], "erase");
   };
 
   // Clearing asks for a second click; with a door picked it only clears that door's marks.
@@ -472,7 +483,8 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
       <div className="editor-body">
         <div className="board-col">
           <Board theme={theme} group={group} variant={variant} rotation={turns}
-            markers={markers} overlay={overlay} onTile={onTile} onTileErase={onTileErase} doorSide={doorSide} setDoorSide={setDoorSide} />
+            markers={markers} overlay={overlay} arrows={arrows}
+            onArrow={(a) => savePair(start, a.path[a.path.length - 1])} onArrowHover={setHover} onTile={onTile} onTileErase={onTileErase} doorSide={doorSide} setDoorSide={setDoorSide} />
           <div className="rotate-bar">
             <button type="button" onClick={() => setTurns((t) => t - 1)} aria-label="Turn left" title="Turn left">⟲</button>
             <button type="button" onClick={() => setTurns((t) => t + 1)} aria-label="Turn right" title="Turn right">⟳</button>
@@ -544,16 +556,6 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
 
             {isAbility && (
               <div className="stack">
-                {tool !== "dive" && (
-                  <div className="facing">
-                    <span>Facing</span>
-                    <div className="compass">
-                      {FACINGS.map((f, i) => f ? (
-                        <button key={f.id} type="button" aria-pressed={facing === f.id} onClick={() => setFacing(f.id)} aria-label={`Facing ${f.id}`}>{f.label}</button>
-                      ) : <span key={i} className="compass-you" aria-hidden="true">●</span>)}
-                    </div>
-                  </div>
-                )}
                 <label className="field inline">
                   <span>{ABILITIES[tool].name} range</span>
                   <input id={`range-${tool}`} type="number" min={1} max={20} value={ranges[tool]}
@@ -564,13 +566,8 @@ function Editor({ data, families, byPos, separate, setSeparate, themeIndex, grou
                   <span>Stop at blocked tiles</span>
                 </label>
                 <p className="note">
-                  {!start ? "Click the tile you start on." :
-                    tool === "dive" ? (diveEnd ? "Dive target set." : "Click a highlighted tile to dive to.") :
-                    `${ABILITIES[tool].hint}: lands ${result && result.end ? `${result.path.length} tiles away` : "nowhere, it's blocked"}.`}
+                  {!start ? "Click where you start." : tool === "dive" ? "Click where to land." : "Click an arrow."}
                 </p>
-                <button type="button" className="primary" disabled={!result || !result.end} onClick={saveAbility}>
-                  Save as markers
-                </button>
               </div>
             )}
           </div>

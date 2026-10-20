@@ -136,17 +136,6 @@ export function countGroupMarks(markers, group, byPos, separate) {
   return countMarks(keys, byPos, separate);
 }
 
-// Rotations: k quarter turns clockwise, as the board is drawn on screen.
-// Template vectors use (x east, z north).
-function rotateCW([x, z], k) {
-  for (let i = 0; i < ((k % 4) + 4) % 4; i++) [x, z] = [z, -x];
-  return [x, z];
-}
-
-export function rotateCCW(v, k) {
-  return rotateCW(v, 4 - (((k % 4) + 4) % 4));
-}
-
 // Tiles a straight-line ability passes through, stopping at the room edge and,
 // optionally, before a blocked tile. Returns the path without the start tile.
 export function straightPath(variant, start, dir, range, stopAtBlocked) {

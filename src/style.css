@@ -155,7 +155,6 @@ button.back:hover { color: var(--accent); }
 .field.inline input { width: 80px; font-variant-numeric: tabular-nums; }
 .check { display: flex; gap: 8px; align-items: center; font-size: 14px; }
 .check input { accent-color: var(--accent); width: 16px; height: 16px; }
-.facing { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); }
 .note { color: var(--muted); font-size: 13px; margin: 0; }
 .note.ok { color: var(--ok); }
 .note.err { color: var(--err); }
@@ -178,10 +177,6 @@ button.back:hover { color: var(--accent); }
 .dialog-body > section + section { border-top: 1px solid var(--line); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-.compass { display: grid; grid-template-columns: repeat(3, 36px); gap: 4px; }
-.compass button { height: 36px; border-radius: 8px; border: 1px solid var(--line); background: var(--stone-2); font-size: 16px; }
-.compass button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
-.compass-you { display: grid; place-items: center; color: var(--muted); font-size: 10px; }
 /* Doorway buttons: always in the theme colour so they read as clickable. */
 .doorway {
   position: absolute; z-index: 2; display: grid; place-items: center; padding: 0;
@@ -244,3 +239,12 @@ button.danger-solid { background: var(--err); color: #fff; border: 1px solid tra
 .input-group button:hover:not(:disabled) { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--stone-2)); }
 .input-group button:disabled { opacity: .45; cursor: default; }
 .input-group .group-action:not(:disabled) { color: var(--accent); }
+/* Arrows around a surge or escape start tile; hover previews, click saves. */
+.jump-arrow {
+  position: absolute; z-index: 3; width: calc(100% / 16); height: calc(100% / 16); padding: 0;
+  display: grid; place-items: center; border: 0; border-radius: 50%;
+  background: var(--accent); color: var(--accent-ink); font: 700 13px/1 var(--body);
+  box-shadow: 0 0 0 2px var(--stone-0); opacity: .9;
+}
+.jump-arrow:hover, .jump-arrow:focus-visible { opacity: 1; transform: scale(1.15); }
+.jump-arrow span { display: block; }
