@@ -525,7 +525,8 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, mark
 
           <div className="panel">
             <div className="seg tools-seg">
-              <button type="button" aria-pressed={tool === "mark"} onClick={() => setTool("mark")}>Mark</button>
+              <button type="button" aria-pressed={tool === "mark"} onClick={() => setTool("mark")}
+                title="Click a tile to mark it. Click again or right-click to remove.">Mark</button>
               {Object.entries(ABILITIES).map(([id, a]) => (
                 <button key={id} type="button" aria-pressed={tool === id} onClick={() => setTool(id)}>{a.name}</button>
               ))}
@@ -533,7 +534,6 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, mark
 
             {!isAbility && (
               <div className="stack">
-                <p className="note">Click a tile to mark it. Click it again, or right-click it, to remove it.</p>
                 <div className="swatches" role="radiogroup" aria-label="Marker colour">
                   {SWATCHES.map((s) => (
                     <button key={s.name} type="button" className="swatch" aria-label={s.name}
@@ -556,7 +556,7 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, mark
                   </div>
                 )}
                 <label className="field">
-                  <span>Text above the tile in game (optional)</span>
+                  <span>Label (optional)</span>
                   <input id="marker-label" value={label} maxLength={24} placeholder="e.g. surge here" onChange={(e) => setLabel(e.target.value)} />
                 </label>
               </div>
@@ -587,7 +587,6 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, mark
                   {!start ? "Click the tile you start on." :
                     tool === "dive" ? (diveEnd ? "Dive target set." : "Click a highlighted tile to dive to.") :
                     `${ABILITIES[tool].hint}: lands ${result && result.end ? `${result.path.length} tiles away` : "nowhere, it's blocked"}.`}
-                  {" "}Thin walls drawn on the map aren't checked, only blocked tiles.
                 </p>
                 <button type="button" className="primary" disabled={!result || !result.end} onClick={saveAbility}>
                   Save as markers
@@ -597,21 +596,18 @@ function Editor({ data, families, separate, setSeparate, themeIndex, group, mark
           </div>
 
           <div className="panel stack">
-            <h3>Copies of this room</h3>
-            <p className="note">
-              {rooms.length <= 1 ? "No other room matches this one, so marks stay here."
-                : isSeparate ? `Your marks also go to ${rooms.length - 1} matching door ${rooms.length === 2 ? "variant" : "variants"} of ${separateName}.`
-                : `Your marks also go to ${rooms.length - 1} matching ${rooms.length === 2 ? "room" : "rooms"} in other themes and door variants, turned to fit.`}
-            </p>
+            <h3 title="Marks go to every copy of this room: other themes and matching door variants, turned to fit.">
+              {rooms.length > 1 ? `Shared with ${rooms.length - 1} ${rooms.length === 2 ? "copy" : "copies"}` : "No copies"}
+            </h3>
             {familySize > 1 && (isSeparate ? (
               <>
-                <p className="note">{separateName} is kept separate: marks here don't change the other copies, and theirs don't change it.</p>
-                <button type="button" onClick={linkAgain}>Link again (takes the other copies' marks)</button>
+                <button type="button" onClick={linkAgain}
+                  title="Rejoin the other copies. This copy takes their marks in place of its own.">Link again</button>
               </>
             ) : (
               <>
-                <button type="button" onClick={makeSeparate}>Make {separateName} separate</button>
-                <p className="note">Only if the game shows this room is different here, like an extra wall.</p>
+                <button type="button" onClick={makeSeparate}
+                  title="Only if the game shows this copy is different, like an extra wall.">Make {separateName} separate</button>
               </>
             ))}
             {clearable > 0 && (
